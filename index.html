@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Credit Spreads Trading Dashboard</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.min.js"></script>
+    <script src="https://apis.google.com/js/api.js"></script>
     <style>
         * {
             margin: 0;
@@ -752,7 +753,7 @@
             // Initialize Google Drive API
             gapi.load('auth2', function() {
                 gapi.auth2.init({
-                    client_id: 'YOUR_GOOGLE_CLIENT_ID' // User needs to set this up
+                    client_id: '127904103159-b06hjgbomsqahteruju3lc4kasbai046.apps.googleusercontent.com' // User needs to set this up
                 }).then(function() {
                     cloudSync.provider = 'Google Drive';
                     cloudSync.enabled = true;

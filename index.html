@@ -1,47 +1,707 @@
-<!DOCTYPE html>
+        function normalizeToPercentage(prices) {
+            if (!prices || prices.length === 0) return [];
+            const firstPrice = prices[0];
+            if (firstPrice === 0) return prices.map(() => 0);
+            return prices.map(price => ((price - firstPrice) / firstPrice) * 100);
+        }
+
+        // Economic Calendar Functions
+        function updateEconomicCalendar() {
+            // Since we can't access paid economic APIs for free, we'll use a predefined calendar
+            // with major recurring events and allow manual updates
+            generateEconomicCalendar();
+            analyzeCalendarRisk();
+            updateCalendarDisplay();
+        }
+
+        function generateEconomicCalendar() {
+            const now = new Date();
+            const events = [];
+            
+            // Generate next 7 days of potential events
+            for (let i = 0; i < 7; i++) {
+                const date = new Date(now.getTime() + (i * 24 * 60 * 60 * 1000));
+                const dayEvents = getEventsForDate(date);
+                events.push(...dayEvents);
+            }
+            
+            economicCalendar.events = events.sort((a, b) => a.date - b.date);
+            economicCalendar.lastUpdate = new Date().toLocaleTimeString();
+        }
+
+        function getEventsForDate(date) {
+            const events = [];
+            const dayOfWeek = date.getDay();
+            const dayOfMonth = date.getDate();
+            
+            // Major recurring events (simplified calendar)
+            const majorEvents = [
+                // FOMC meetings (8 times per year, roughly every 6 weeks)
+                { name: 'FOMC Meeting', impact: 'HIGH', probability: 0.15, description: 'Federal Reserve interest rate decision' },
+                
+                // Monthly events
+                { name: 'Non-Farm Payrolls', impact: 'HIGH', probability: dayOfWeek === 5 && dayOfMonth <= 7 ? 0.9 : 0, description: 'Monthly jobs report' },
+                { name: 'CPI Report', impact: 'HIGH', probability: dayOfWeek === 3 && dayOfMonth >= 10 && dayOfMonth <= 15 ? 0.8 : 0, description: 'Consumer Price Index' },
+                { name: 'PPI Report', impact: 'MEDIUM', probability: dayOfWeek === 2 && dayOfMonth >= 8 && dayOfMonth <= 14 ? 0.7 : 0, description: 'Producer Price Index' },
+                { name: 'Retail Sales', impact: 'MEDIUM', probability: dayOfWeek === 4 && dayOfMonth >= 12 && dayOfMonth <= 18 ? 0.6 : 0, description: 'Monthly retail sales data' },
+                
+                // Weekly events
+                { name: 'Initial Jobless Claims', impact: 'LOW', probability: dayOfWeek === 4 ? 0.9 : 0, description: 'Weekly unemployment claims' },
+                
+                // Quarterly events
+                { name: 'GDP Report', impact: 'HIGH', probability: (dayOfMonth >= 25 || dayOfMonth <= 5) && dayOfWeek === 4 ? 0.3 : 0, description: 'Quarterly GDP data' },
+                
+                // Earnings season (roughly 4 times per year)
+                { name: 'Major Earnings', impact: 'MEDIUM', probability: isEarningsSeason(date) ? 0.6 : 0, description: 'S&P 500 company earnings' }
+            ];
+            
+            majorEvents.forEach(event => {
+                if (Math.random() < event.probability) {
+                    events.push({
+                        date: date,
+                        name: event.name,
+                        impact: event.impact,
+                        description: event.description,
+                        time: getEventTime(event.name)
+                    });
+                }
+            });
+            
+            return events;
+        }
+
+        function isEarningsSeason(date) {
+            const month = date.getMonth();
+            // Earnings seasons: Jan, Apr, Jul, Oct (and 2-3 weeks after)
+            return [0, 1, 3, 4, 6, 7, 9, 10].includes(month);
+        }
+
+        function getEventTime(eventName) {
+            const times = {
+                'FOMC Meeting': '2:00 PM ET',
+                'Non-Farm Payrolls': '8:30 AM ET',
+                'CPI Report': '8:30 AM ET',
+                'PPI Report': '8:30 AM ET',
+                'Retail Sales': '8:30 AM ET',
+                'Initial Jobless Claims': '8:30 AM ET',
+                'GDP Report': '8:30 AM ET',
+                'Major Earnings': 'After Market Close'
+            };
+            return times[eventName] || '8:30 AM ET';
+        }
+
+        function analyzeCalendarRisk() {
+            const events = economicCalendar.events;
+            const highImpactEvents = events.filter(e => e.impact === 'HIGH');
+            const mediumImpactEvents = events.filter(e => e.impact === 'MEDIUM');
+            
+            let riskLevel, advice, analysis, color;
+            
+            if (highImpactEvents.length >= 2) {
+                riskLevel = 'HIGH';
+                advice = 'AVOID TRADING';
+                analysis = `${highImpactEvents.length} high-impact events this week. Avoid opening new credit spreads. Consider closing positions early.`;
+                color = '#e53e3e';
+            } else if (highImpactEvents.length === 1) {
+                riskLevel = 'MEDIUM';
+                advice = 'TRADE WITH CAUTION';
+                analysis = `1 high-impact event this week (${highImpactEvents[0].name}). Be very selective with new positions and avoid trading 1 day before/after.`;
+                color = '#ed8936';
+            } else if (mediumImpactEvents.length >= 3) {
+                riskLevel = 'MEDIUM';
+                advice = 'TRADE WITH CAUTION';
+                analysis = `${mediumImpactEvents.length} medium-impact events this week. Good week for credit spreads but monitor positions closely.`;
+                color = '#ed8936';
+            } else {
+                riskLevel = 'LOW';
+                advice = 'FAVORABLE';
+                analysis = `Light economic calendar this week. Good environment for opening new credit spread positions.`;
+                color = '#38a169';
+            }
+            
+            economicCalendar.riskLevel = riskLevel;
+            economicCalendar.advice = advice;
+            economicCalendar.analysis = analysis;
+            economicCalendar.color = color;
+        }
+
+        function updateCalendarDisplay() {
+            document.getElementById('upcomingEvents').textContent = economicCalendar.events.length;
+            document.getElementById('riskLevel').textContent = economicCalendar.riskLevel;
+            document.getElementById('riskLevel').style.color = economicCalendar.color;
+            document.getElementById('tradingAdvice').textContent = economicCalendar.advice;
+            document.getElementById('tradingAdvice').style.color = economicCalendar.color;
+            
+            // Next major event
+            const nextMajor = economicCalendar.events.find(e => e.impact === 'HIGH');
+            document.getElementById('nextMajorEvent').textContent = nextMajor ? 
+                nextMajor.name : 'None this week';
+            
+            // Events list
+            const eventsContainer = document.getElementById('economicEvents');
+            if (economicCalendar.events.length === 0) {
+                eventsContainer.innerHTML = '<div style="padding: 20px; text-align: center; color: #718096;">No major events this week - Good for trading!</div>';
+            } else {
+                const eventsHtml = economicCalendar.events.map(event => `
+                    <div class="trade-item" style="grid-template-columns: 1fr 2fr 1fr 1fr;">
+                        <div><strong>${event.date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</strong></div>
+                        <div>${event.name}</div>
+                        <div class="${event.impact === 'HIGH' ? 'negative' : event.impact === 'MEDIUM' ? 'neutral' : 'positive'}">${event.impact}</div>
+                        <div style="font-size: 0.8rem;">${event.time}</div>
+                    </div>
+                `).join('');
+                eventsContainer.innerHTML = eventsHtml;
+            }
+            
+            document.getElementById('calendarAnalysisText').textContent = economicCalendar.analysis;
+        }
+
+        // VIX Analysis Functions
+        async function updateVixData() {
+            try {
+                console.log('Attempting to fetch VIX data...');
+                
+                // Try CORS proxy first
+                let response;
+                try {
+                    response = await fetch('https://api.allorigins.win/raw?url=' + encodeURIComponent('https://query1.finance.yahoo.com/v8/finance/chart/%5EVIX'));
+                    console.log('Using CORS proxy for VIX data');
+                } catch (proxyError) {
+                    console.log('CORS proxy failed, trying direct access...');
+                    response = await fetch('https://query1.finance.yahoo.com/v8/finance/chart/%5EVIX');
+                }
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                console.log('VIX API Response:', data);
+                
+                let currentPrice;
+                
+                // Handle Yahoo Finance format
+                if (data.chart && data.chart.result && data.chart.result[0]) {
+                    currentPrice = data.chart.result[0].meta.regularMarketPrice;
+                    console.log('Real VIX data retrieved:', currentPrice);
+                    
+                    vixData.level = currentPrice.toFixed(2);
+                    vixData.lastUpdate = new Date().toLocaleTimeString();
+                    
+                    analyzeVixEnvironment(currentPrice);
+                    updateVixDisplay();
+                    
+                    console.log('VIX data updated successfully with real data');
+                    return; // Success - exit function
+                }
+                
+                throw new Error('Invalid VIX data structure');
+                
+            } catch (error) {
+                console.error('Error fetching real VIX data:', error);
+                console.log('Using simulated VIX as fallback');
+                useSimulatedVIX();
+            }
+        }
+
+        function getSimulatedVIX() {
+            // Generate realistic VIX value between 12-35
+            const baseVIX = 18; // Historical average
+            const volatility = (Math.random() - 0.5) * 10; // +/- 5 points
+            return Math.max(12, Math.min(35, baseVIX + volatility));
+        }
+
+        function useSimulatedVIX() {
+            const simulatedVIX = getSimulatedVIX();
+            vixData.level = simulatedVIX.toFixed(2);
+            vixData.lastUpdate = new Date().toLocaleTimeString();
+            
+            analyzeVixEnvironment(simulatedVIX);
+            updateVixDisplay();
+            
+            // Add note that it's simulated with cleaner formatting
+            document.getElementById('vixAnalysisText').textContent = 
+                `Using simulated VIX (${vixData.level}) due to API access restrictions. ` + vixData.analysis;
+        }
+
+        function analyzeVixEnvironment(vixLevel) {
+            let environment, recommendation, analysis, color;
+            
+            if (vixLevel < 12) {
+                environment = 'Very Low';
+                recommendation = 'AVOID';
+                analysis = `VIX at ${vixLevel} indicates extremely low volatility. Credit spread premiums will be poor. Consider waiting for higher volatility or reduce position sizes significantly.`;
+                color = '#e53e3e';
+            } else if (vixLevel < 15) {
+                environment = 'Low';
+                recommendation = 'CAUTION';
+                analysis = `VIX at ${vixLevel} shows low volatility. Credit spreads may offer limited premiums. Be selective and focus on shorter-term expiration or smaller positions.`;
+                color = '#ed8936';
+            } else if (vixLevel < 20) {
+                environment = 'Ideal';
+                recommendation = 'FAVORABLE';
+                analysis = `VIX at ${vixLevel} is in the sweet spot for credit spreads. Good premium collection with manageable risk. Optimal environment for your strategy.`;
+                color = '#38a169';
+            } else if (vixLevel < 25) {
+                environment = 'Moderate';
+                recommendation = 'GOOD';
+                analysis = `VIX at ${vixLevel} indicates moderate volatility. Credit spreads can work well, but be more selective with strike selection and consider shorter duration.`;
+                color = '#38a169';
+            } else if (vixLevel < 30) {
+                environment = 'High';
+                recommendation = 'CAUTION';
+                analysis = `VIX at ${vixLevel} shows elevated volatility. Credit spreads face higher risk of large moves. Consider wider strikes or wait for volatility to subside.`;
+                color = '#ed8936';
+            } else {
+                environment = 'Very High';
+                recommendation = 'AVOID';
+                analysis = `VIX at ${vixLevel} indicates extreme volatility. Credit spreads are very risky in this environment. Consider defensive strategies or cash positions.`;
+                color = '#e53e3e';
+            }
+            
+            vixData.environment = environment;
+            vixData.recommendation = recommendation;
+            vixData.analysis = analysis;
+            vixData.color = color;
+        }
+
+        function updateVixDisplay() {
+            document.getElementById('vixLevel').textContent = vixData.level || '--';
+            document.getElementById('vixEnvironment').textContent = vixData.environment;
+            document.getElementById('vixEnvironment').style.color = vixData.color || '#2d3748';
+            document.getElementById('vixRecommendation').textContent = vixData.recommendation || '--';
+            document.getElementById('vixRecommendation').style.color = vixData.color || '#2d3748';
+            document.getElementById('lastVixUpdate').textContent = vixData.lastUpdate || '--';
+            document.getElementById('vixAnalysisText').textContent = vixData.analysis || 'Loading market data...';
+        }
+
+        // Data persistence functions
+        function saveData() {
+            try {
+                const dataToSave = JSON.stringify(accountData);
+                localStorage.setItem('creditSpreadsData', dataToSave);
+                console.log('Data saved successfully');
+            } catch (error) {
+                console.error('Error saving data:', error);
+            }
+        }
+
+        function loadData() {
+            try {
+                const savedData = localStorage.getItem('creditSpreadsData');
+                if (savedData) {
+                    return JSON.parse(savedData);
+                }
+            } catch (error) {
+                console.error('Error loading data:', error);
+            }
+            return null;
+        }
+
+        function clearAllData() {
+            if (confirm('Are you sure you want to clear all trade data? This cannot be undone.')) {
+                localStorage.removeItem('creditSpreadsData');
+                accountData = {
+                    balance: 3000,
+                    startingBalance: 3000,
+                    trades: [],
+                    accountHistory: [3000]
+                };
+                updateDisplays();
+                alert('All data cleared successfully');
+            }
+        }
+
+        function exportData() {
+            const dataStr = JSON.stringify(accountData, null, 2);
+            const dataBlob = new Blob([dataStr], {type:'application/json'});
+            
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(dataBlob);
+            link.download = `credit-spreads-data-${new Date().toISOString().split('T')[0]}.json`;
+            link.click();
+        }
+
+        function importData(event) {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    try {
+                        const importedData = JSON.parse(e.target.result);
+                        if (confirm('This will replace all current data. Continue?')) {
+                            accountData = importedData;
+                            saveData();
+                            updateDisplays();
+                            alert('Data imported successfully');
+                        }
+                    } catch (error) {
+                        alert('Error importing data: Invalid file format');
+                    }
+                };
+                reader.readAsText(file);
+            }
+        }
+
+        function switchTab(tabName) {
+            activeTab = tabName;
+            
+            // Update tab buttons
+            document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            // Update tab content
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            document.getElementById(tabName).classList.add('active');
+        }
+
+        function analyzeTrade() {
+            const isActive = activeTab === 'bullPut';
+            const suffix = isActive ? '1' : '2';
+            
+            const currentPrice = parseFloat(document.getElementById(`currentPrice${suffix}`).value);
+            const shortStrike = parseFloat(document.getElementById(`shortStrike${suffix}`).value);
+            const longStrike = parseFloat(document.getElementById(`longStrike${suffix}`).value);
+            const credit = parseFloat(document.getElementById(`creditReceived${suffix}`).value);
+            
+            if (isNaN(currentPrice) || isNaN(shortStrike) || isNaN(longStrike) || isNaN(credit)) {
+                alert('Please fill in all trade parameters');
+                return;
+            }
+            
+            const strikeWidth = Math.abs(shortStrike - longStrike) * 100;
+            const maxProfit = credit;
+            const maxRisk = strikeWidth - credit;
+            const returnPercent = (maxProfit / maxRisk * 100).toFixed(1);
+            
+            let breakeven;
+            if (isActive) { // Bull Put Spread
+                breakeven = shortStrike - (credit / 100);
+            } else { // Bear Call Spread
+                breakeven = shortStrike + (credit / 100);
+            }
+            
+            document.getElementById('maxProfit').textContent = `${maxProfit}`;
+            document.getElementById('maxRisk').textContent = `${maxRisk}`;
+            document.getElementById('returnPercent').textContent = `${returnPercent}%`;
+            document.getElementById('breakeven').textContent = `${breakeven.toFixed(2)}`;
+            
+            document.getElementById('tradeAnalysis').style.display = 'block';
+            
+            // Update insights with VIX consideration
+            updateInsights(maxRisk, returnPercent, currentPrice, shortStrike, isActive);
+        }
+
+        function addTrade() {
+            const isActive = activeTab === 'bullPut';
+            const suffix = isActive ? '1' : '2';
+            
+            const underlying = document.getElementById(`underlying${suffix}`).value;
+            const currentPrice = parseFloat(document.getElementById(`currentPrice${suffix}`).value);
+            const shortStrike = parseFloat(document.getElementById(`shortStrike${suffix}`).value);
+            const longStrike = parseFloat(document.getElementById(`longStrike${suffix}`).value);
+            const credit = parseFloat(document.getElementById(`creditReceived${suffix}`).value);
+            const dte = parseInt(document.getElementById(`dte${suffix}`).value);
+            
+            if (isNaN(currentPrice) || isNaN(shortStrike) || isNaN(longStrike) || isNaN(credit) || isNaN(dte)) {
+                alert('Please fill in all trade parameters and analyze first');
+                return;
+            }
+            
+            const strikeWidth = Math.abs(shortStrike - longStrike) * 100;
+            const maxRisk = strikeWidth - credit;
+            
+            // Risk management check
+            if (maxRisk > accountData.balance * 0.15) {
+                alert(`Trade risk (${maxRisk}) exceeds 15% of account. Maximum allowed: ${(accountData.balance * 0.15).toFixed(0)}`);
+                return;
+            }
+            
+            const trade = {
+                id: Date.now(),
+                type: isActive ? 'Bull Put Spread' : 'Bear Call Spread',
+                underlying: underlying,
+                openDate: new Date().toLocaleDateString(),
+                currentPrice: currentPrice,
+                shortStrike: shortStrike,
+                longStrike: longStrike,
+                credit: credit,
+                maxRisk: maxRisk,
+                dte: dte,
+                status: 'Open',
+                pnl: 0,
+                closeDate: null
+            };
+            
+            accountData.trades.push(trade);
+            saveDataWithSync(); // Save with auto-sync
+            updateDisplays();
+            clearForm();
+            alert('Trade added successfully!');
+        }
+
+        function closeTrade(tradeId, pnl) {
+            const trade = accountData.trades.find(t => t.id === tradeId);
+            if (trade) {
+                trade.status = 'Closed';
+                trade.pnl = pnl;
+                trade.closeDate = new Date().toLocaleDateString();
+                accountData.balance += pnl;
+                accountData.accountHistory.push(accountData.balance);
+                saveDataWithSync(); // Save with auto-sync
+                updateDisplays();
+            }
+        }
+
+        function updateDisplays() {
+            // Account metrics
+            const totalReturn = ((accountData.balance - accountData.startingBalance) / accountData.startingBalance * 100).toFixed(1);
+            const openTrades = accountData.trades.filter(t => t.status === 'Open');
+            const closedTrades = accountData.trades.filter(t => t.status === 'Closed');
+            const winRate = closedTrades.length > 0 ? (closedTrades.filter(t => t.pnl > 0).length / closedTrades.length * 100).toFixed(1) : '0';
+            
+            document.getElementById('accountValue').textContent = `${accountData.balance.toLocaleString()}`;
+            document.getElementById('totalReturn').textContent = `+${totalReturn}%`;
+            document.getElementById('totalReturn').className = totalReturn >= 0 ? 'metric-value positive' : 'metric-value negative';
+            document.getElementById('winRate').textContent = `${winRate}%`;
+            
+            // Risk metrics
+            const capitalAtRisk = openTrades.reduce((sum, trade) => sum + trade.maxRisk, 0);
+            document.getElementById('activePositions').textContent = openTrades.length;
+            document.getElementById('capitalAtRisk').textContent = `${capitalAtRisk}`;
+            document.getElementById('maxLoss').textContent = `${capitalAtRisk}`;
+            
+            // Risk level
+            const riskPercent = capitalAtRisk / accountData.balance;
+            let riskLevel = 'Low Risk';
+            let riskClass = 'risk-low';
+            if (riskPercent > 0.4) {
+                riskLevel = 'High Risk';
+                riskClass = 'risk-high';
+            } else if (riskPercent > 0.2) {
+                riskLevel = 'Medium Risk';
+                riskClass = 'risk-medium';
+            }
+            
+            const riskElement = document.getElementById('riskLevel');
+            riskElement.textContent = riskLevel;
+            riskElement.className = `risk-indicator ${riskClass}`;
+            
+            // Performance metrics
+            if (closedTrades.length > 0) {
+                const avgReturn = (closedTrades.reduce((sum, trade) => sum + (trade.pnl / trade.maxRisk * 100), 0) / closedTrades.length).toFixed(1);
+                const bestTrade = Math.max(...closedTrades.map(t => t.pnl));
+                const worstTrade = Math.min(...closedTrades.map(t => t.pnl));
+                
+                document.getElementById('avgReturn').textContent = `${avgReturn}%`;
+                document.getElementById('bestTrade').textContent = `${bestTrade}`;
+                document.getElementById('worstTrade').textContent = `${worstTrade}`;
+            }
+            
+            // Update charts
+            updateCharts();
+            updateTradeHistory();
+        }
+
+        function updateCharts() {
+            // Account chart
+            const labels = accountData.accountHistory.map((_, i) => i === 0 ? 'Start' : `Trade ${i}`);
+            accountChart.data.labels = labels;
+            accountChart.data.datasets[0].data = accountData.accountHistory;
+            accountChart.update();
+            
+            // Risk chart
+            const openTrades = accountData.trades.filter(t => t.status === 'Open');
+            const capitalAtRisk = openTrades.reduce((sum, trade) => sum + trade.maxRisk, 0);
+            riskChart.data.datasets[0].data = [accountData.balance - capitalAtRisk, capitalAtRisk];
+            riskChart.update();
+            
+            // Performance chart
+            const closedTrades = accountData.trades.filter(t => t.status === 'Closed');
+            if (closedTrades.length > 0) {
+                performanceChart.data.labels = closedTrades.map((_, i) => `Trade ${i + 1}`);
+                performanceChart.data.datasets[0].data = closedTrades.map(t => t.pnl);
+                performanceChart.data.datasets[0].backgroundColor = closedTrades.map(t => t.pnl >= 0 ? '#38a169' : '#e53e3e');
+                performanceChart.update();
+            }
+        }
+
+        function updateTradeHistory() {
+            const historyContainer = document.getElementById('tradeHistory');
+            
+            if (accountData.trades.length === 0) {
+                historyContainer.innerHTML = '<div style="padding: 20px; text-align: center; color: #718096;">No trades yet. Add your first trade to get started!</div>';
+                return;
+            }
+            
+            const tradesHtml = accountData.trades.map(trade => `
+                <div class="trade-item status-${trade.status.toLowerCase()}">
+                    <div><strong>${trade.type}</strong></div>
+                    <div>${trade.underlying}</div>
+                    <div>${trade.shortStrike}/${trade.longStrike}</div>
+                    <div>${trade.credit}</div>
+                    <div class="${trade.pnl >= 0 ? 'positive' : 'negative'}">${trade.status === 'Closed' ? `${trade.pnl}` : 'Open'}</div>
+                    <div>${trade.status === 'Open' ? 
+                        `<button onclick="closeTrade(${trade.id}, parseFloat(prompt('Enter P&L (use negative for losses):')) || 0)" style="padding: 5px 10px; font-size: 0.8rem;">Close</button>` : 
+                        trade.closeDate}</div>
+                </div>
+            `).join('');
+            
+            historyContainer.innerHTML = tradesHtml;
+        }
+
+        function updateInsights(maxRisk, returnPercent, currentPrice, shortStrike, isBullPut) {
+            const insightsContainer = document.getElementById('insights');
+            const riskPercentOfAccount = (maxRisk / accountData.balance * 100).toFixed(1);
+            const distance = isBullPut ? ((currentPrice - shortStrike) / currentPrice * 100).toFixed(1) : ((shortStrike - currentPrice) / currentPrice * 100).toFixed(1);
+            
+            let insights = [];
+            
+            // Time Decay Optimization - Check if data exists
+            if (timingAnalysis.entryRating) {
+                if (timingAnalysis.entryRating === 'AVOID') {
+                    insights.push(`<div class="insight-item"><strong>⏰ Poor Timing:</strong> ${timingAnalysis.analysis}</div>`);
+                } else if (timingAnalysis.entryRating === 'POOR') {
+                    insights.push(`<div class="insight-item"><strong>⚠️ Suboptimal Entry:</strong> ${timingAnalysis.analysis}</div>`);
+                } else if (timingAnalysis.entryRating === 'EXCELLENT') {
+                    insights.push(`<div class="insight-item"><strong>🎯 Perfect Timing:</strong> ${timingAnalysis.analysis}</div>`);
+                } else if (timingAnalysis.entryRating === 'GOOD') {
+                    insights.push(`<div class="insight-item"><strong>✅ Good Timing:</strong> ${timingAnalysis.analysis}</div>`);
+                }
+            }
+            
+            // Market Trend Warning - Check if data exists
+            if (trendAnalysis.environment) {
+                if (trendAnalysis.environment === 'AVOID') {
+                    insights.push(`<div class="insight-item"><strong>🚨 Strong Trend Alert:</strong> ${trendAnalysis.analysis} Consider waiting for trend exhaustion.</div>`);
+                } else if (trendAnalysis.environment === 'CAUTION') {
+                    insights.push(`<div class="insight-item"><strong>⚠️ Trend Caution:</strong> ${trendAnalysis.analysis}</div>`);
+                } else if (trendAnalysis.environment === 'EXCELLENT') {
+                    insights.push(`<div class="insight-item"><strong>🎯 Perfect Environment:</strong> ${trendAnalysis.analysis}</div>`);
+                } else if (trendAnalysis.environment === 'GOOD') {
+                    insights.push(`<div class="insight-item"><strong>✅ Favorable Trends:</strong> ${trendAnalysis.analysis}</div>`);
+                }
+            }
+            
+            // Economic Calendar Warning - Check if data exists
+            if (economicCalendar.riskLevel) {
+                if (economicCalendar.riskLevel === 'HIGH') {
+                    insights.push(`<div class="insight-item"><strong>🚨 High Calendar Risk:</strong> Major economic events this week. Avoid opening new positions. Consider closing existing trades early.</div>`);
+                } else if (economicCalendar.riskLevel === 'MEDIUM') {
+                    insights.push(`<div class="insight-item"><strong>⚠️ Calendar Caution:</strong> Some market-moving events this week. Be selective with new positions and monitor closely.</div>`);
+                } else if (economicCalendar.events && economicCalendar.events.length === 0) {
+                    insights.push(`<div class="insight-item"><strong>✅ Clear Calendar:</strong> Light economic calendar this week - excellent environment for credit spreads.</div>`);
+                }
+            }
+            
+            // VIX Environment Insight - Check if data exists
+            if (vixData.level) {
+                const vixLevel = parseFloat(vixData.level);
+                if (!isNaN(vixLevel)) {
+                    if (vixLevel < 15) {
+                        insights.push(`<div class="insight-item"><strong>⚠️ Low Volatility:</strong> VIX at ${vixData.level} suggests poor premiums. Consider waiting for better volatility or reducing position size.</div>`);
+                    } else if (vixLevel > 25) {
+                        insights.push(`<div class="insight-item"><strong>🌪️ High Volatility:</strong> VIX at ${vixData.level} indicates elevated risk. Consider wider strikes or smaller positions.</div>`);
+                    } else {
+                        insights.push(`<div class="insight-item"><strong>✅ Good Environment:</strong> VIX at ${vixData.level} is favorable for credit spreads. Good timing for new positions.</div>`);
+                    }
+                }
+            }
+            
+            // Risk management insight
+            if (maxRisk > accountData.balance * 0.15) {
+                insights.push(`<div class="insight-item"><strong>⚠️ Risk Warning:</strong> This trade risks ${riskPercentOfAccount}% of your account. Consider reducing position size to stay under 15% limit.</div>`);
+            } else {
+                insights.push(`<div class="insight-item"><strong>✅ Risk Check:</strong> Trade risk (${riskPercentOfAccount}%) is within safe limits. Good position sizing!</div>`);
+            }
+            
+            // Return analysis
+            if (returnPercent > 25) {
+                insights.push(`<div class="insight-item"><strong>📈 High Return:</strong> ${returnPercent}% return is attractive but may indicate higher risk. Verify strike selection.</div>`);
+            } else if (returnPercent < 15) {
+                insights.push(`<div class="insight-item"><strong>📊 Conservative:</strong> ${returnPercent}% return is conservative. Consider if risk/reward meets your targets.</div>`);
+            } else {
+                insights.push(`<div class="insight-item"><strong>🎯 Good Target:</strong> ${returnPercent}% return fits the 15-25% sweet spot for credit spreads.</div>`);
+            }
+            
+            // Probability insight
+            if (distance > 5) {
+                insights.push(`<div class="insight-item"><strong>🛡️ Safe Distance:</strong> ${distance}% out-of-money provides good cushion. High probability trade.</div>`);
+            } else if (distance < 2) {
+                insights.push(`<div class="insight-item"><strong>⚡ Close to Strike:</strong> Only ${distance}% away from short strike. Higher risk but better premium.</div>`);
+            } else {
+                insights.push(`<div class="insight-item"><strong>⚖️ Balanced:</strong> ${distance}% distance offers good balance of premium and safety.</div>`);
+            }
+            
+            // Account building insight
+            const openTrades = accountData.trades.filter(t => t.status === 'Open').length;
+            if (openTrades >= 3) {
+                insights.push(`<div class="insight-item"><strong>📊 Portfolio:</strong> You have ${openTrades} open positions. Consider concentration risk and correlation.</div>`);
+            } else {
+                insights.push(`<div class="insight-item"><strong>📈 Scaling:</strong> Room for ${3 - openTrades} more positions to optimize capital usage while managing risk.</div>`);
+            }
+            
+            insightsContainer.innerHTML = insights.join('');
+        }
+
+        function clearForm() {
+            // Clear bull put form
+            document.getElementById('currentPrice1').value = '';
+            document.getElementById('shortStrike1').value = '';
+            document.getElementById('longStrike1').value = '';
+            document.getElementById('creditReceived1').value = '';
+            document.getElementById('dte1').value = '';
+            
+            // Clear bear call form
+            document.getElementById('currentPrice2').value = '';
+            document.getElementById('shortStrike2').value = '';
+            document.getElementById('longStrike2').value = '';
+            document.getElementById('creditReceived2').value = '';
+            document.getElementById('dte2').value = '';
+            
+            // Hide analysis
+            document.getElementById('tradeAnalysis').style.display = 'none';
+        }
+
+        // Initialize on page load
+        window.onload = function() {
+            initializeCharts();
+            updateDisplays(); // This will load saved data
+            updateVixData(); // Load VIX data on startup
+            updateEconomicCalendar(); // Load economic calendar on startup
+            updateTrendAnalysis(); // Load trend analysis on startup
+            updateTimingAnalysis(); // Load timing analysis on startup
+            
+            // Initialize sync display
+            const deviceElement = document.getElementById('currentDevice');
+            if (deviceElement) {
+                deviceElement.textContent = getDeviceId().slice(-4);
+            }
+            
+            // Set manual sync as default
+            document.getElementById('syncStatus').textContent = 'Manual Mode';
+            document.getElementById('syncProvider').textContent = 'Export/Import';
+            
+            // Check for saved Google auth
+            checkForSavedAuth();
+        };
+    </script>
+</body>
+</html><!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Credit Spreads Trading Dashboard</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+    <!-- Google APIs for Cloud Sync -->
+    <script src="https://apis.google.com/js/api.js"></script>
+    <script src="https://accounts.google.com/gsi/client"></script>
     <style>
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
-            // Trend Chart
-            const trendCtx = document.getElementById('trendChart').getContext('2d');
-            trendChart = new Chart(trendCtx, {
-                type: 'line',
-                data: {
-                    labels: [],
-                    datasets: []
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: { 
-                            display: true,
-                            position: 'top'
-                        }
-                    },
-                    scales: {
-                        y: {
-                            title: {
-                                display: true,
-                                text: '% Change'
-                            },
-                            ticks: {
-                                callback: function(value) {
-                                    return value.toFixed(1) + '%';
-                                }
-                            }
-                        }
-                    }
-                }
-            });
         }
 
         body {
@@ -129,6 +789,7 @@
         }
 
         .positive { color: #38a169; }
+        .negative { color: #e53e3e; }
         .day-score {
             padding: 5px 8px;
             border-radius: 4px;
@@ -270,6 +931,15 @@
 
         .tab-content.active {
             display: block;
+        }
+
+        .sync-setup-btn {
+            background: linear-gradient(135deg, #4285f4, #34a853);
+            margin-right: 10px;
+        }
+
+        .sync-setup-btn:hover {
+            box-shadow: 0 5px 15px rgba(66, 133, 244, 0.4);
         }
     </style>
 </head>
@@ -653,6 +1323,7 @@
                 </div>
                 
                 <div class="form-row">
+                    <button onclick="setupCloudSync()" class="sync-setup-btn">⚙️ Setup Cloud Sync</button>
                     <button onclick="exportDataWithSync()" style="background: linear-gradient(135deg, #38a169, #48bb78);">📤 Export for Other Devices</button>
                     <button onclick="document.getElementById('importFile').click()" style="background: linear-gradient(135deg, #667eea, #764ba2);">📥 Import from Other Device</button>
                 </div>
@@ -748,6 +1419,132 @@
             accessToken: null
         };
 
+        // Initialize charts
+        let accountChart, riskChart, performanceChart, trendChart;
+
+        function initializeCharts() {
+            // Account Growth Chart
+            const accountCtx = document.getElementById('accountChart').getContext('2d');
+            accountChart = new Chart(accountCtx, {
+                type: 'line',
+                data: {
+                    labels: ['Start'],
+                    datasets: [{
+                        label: 'Account Value',
+                        data: [3000],
+                        borderColor: '#667eea',
+                        backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                        borderWidth: 3,
+                        fill: true,
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: false,
+                            ticks: {
+                                callback: function(value) {
+                                    return ' + value.toLocaleString();
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+
+            // Risk Distribution Chart
+            const riskCtx = document.getElementById('riskChart').getContext('2d');
+            riskChart = new Chart(riskCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Available Capital', 'Capital at Risk'],
+                    datasets: [{
+                        data: [3000, 0],
+                        backgroundColor: ['#38a169', '#e53e3e'],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'bottom' }
+                    }
+                }
+            });
+
+            // Performance Chart
+            const perfCtx = document.getElementById('performanceChart').getContext('2d');
+            performanceChart = new Chart(perfCtx, {
+                type: 'bar',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Trade P&L',
+                        data: [],
+                        backgroundColor: [],
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: function(value) {
+                                    return ' + value;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+
+            // Trend Chart
+            const trendCtx = document.getElementById('trendChart').getContext('2d');
+            trendChart = new Chart(trendCtx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: []
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { 
+                            display: true,
+                            position: 'top'
+                        }
+                    },
+                    scales: {
+                        y: {
+                            title: {
+                                display: true,
+                                text: '% Change'
+                            },
+                            ticks: {
+                                callback: function(value) {
+                                    return value.toFixed(1) + '%';
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
         // Secure Cloud Sync Functions
         function setupCloudSync() {
             const modal = createSetupModal();
@@ -832,10 +1629,10 @@ This is safe to use - it's public configuration, not a secret!`);
             cloudSync.clientId = clientId;
 
             // Initialize Google Identity Services
-            if (typeof google !== 'undefined' && google.accounts) {
+            if (typeof gapi !== 'undefined' && gapi.load) {
                 initializeGoogleAuth(clientId);
             } else {
-                alert('Google Identity Services not loaded. Please refresh the page and try again.');
+                alert('Google APIs not loaded. Please refresh the page and try again.');
             }
         }
 
@@ -997,11 +1794,13 @@ This is safe to use - it's public configuration, not a secret!`);
         }
 
         function updateSyncStatus(status) {
-            // Simplified - no complex cloud sync
+            cloudSync.status = status;
+            document.getElementById('syncStatus').textContent = status;
         }
 
         function updateSyncDisplay() {
-            // Simplified - no complex cloud sync
+            document.getElementById('syncProvider').textContent = cloudSync.provider || 'Export/Import';
+            document.getElementById('lastSync').textContent = cloudSync.lastSync || '--';
         }
 
         function getDeviceId() {
@@ -1012,6 +1811,12 @@ This is safe to use - it's public configuration, not a secret!`);
                 localStorage.setItem('deviceId', deviceId);
             }
             return deviceId;
+        }
+
+        function exportDataWithSync() {
+            exportData();
+            cloudSync.lastSync = new Date().toLocaleString();
+            updateSyncDisplay();
         }
 
         // Auto-sync when data changes
@@ -1061,51 +1866,43 @@ This is safe to use - it's public configuration, not a secret!`);
             const isHoliday = checkHolidayWeek(currentDate);
             const isExpirationWeek = checkExpirationWeek(currentDate);
             
-            let rating, analysis, color;
+            let rating, analysis;
             
             if (isHoliday) {
                 rating = 'AVOID';
                 analysis = 'Holiday week detected. Reduced trading volume and unpredictable theta decay. Consider waiting until next week.';
-                color = '#e53e3e';
             } else if (isExpirationWeek) {
                 rating = 'CAUTION';
                 analysis = 'Options expiration week. Increased volatility and gamma risk. Consider shorter DTE or wait for next cycle.';
-                color = '#ed8936';
             } else {
                 switch(dayOfWeek) {
                     case 1: // Monday
                         rating = 'EXCELLENT';
                         analysis = 'Monday is optimal for opening credit spreads. Full week of theta decay ahead with maximum time efficiency.';
-                        color = '#38a169';
                         break;
                     case 2: // Tuesday  
                         rating = 'GOOD';
                         analysis = 'Tuesday is very good for entries. Strong theta decay potential with 4 trading days remaining in the week.';
-                        color = '#38a169';
                         break;
                     case 3: // Wednesday
                         rating = 'FAIR';
                         analysis = 'Wednesday entries are acceptable but not optimal. 3 days of decay remaining before weekend inefficiency.';
-                        color = '#ed8936';
                         break;
                     case 4: // Thursday
                         rating = 'POOR';
                         analysis = 'Thursday entries face weekend theta inefficiency. Only 2 trading days before weekend pause in decay.';
-                        color = '#e53e3e';
                         break;
                     case 5: // Friday
                         rating = 'AVOID';
                         analysis = 'Friday entries are suboptimal. Immediate weekend theta inefficiency and only 1 day of active decay.';
-                        color = '#e53e3e';
                         break;
                     default: // Weekend
                         rating = 'CLOSED';
                         analysis = 'Markets are closed. Plan your entries for Monday or Tuesday for optimal theta efficiency.';
-                        color = '#718096';
                 }
             }
             
-            return { rating, analysis, color };
+            return { rating, analysis };
         }
 
         function calculateWeeklyScores() {
@@ -1653,837 +2450,3 @@ This is safe to use - it's public configuration, not a secret!`);
             if (firstPrice === 0) return prices.map(() => 0);
             return prices.map(price => ((price - firstPrice) / firstPrice) * 100);
         }
-
-        function handleTrendError() {
-            console.log('Handling trend analysis error...');
-            
-            document.getElementById('spyTrend').textContent = 'Error';
-            document.getElementById('spyTrend').style.color = '#e53e3e';
-            
-            document.getElementById('qqqTrend').textContent = 'Error';
-            document.getElementById('qqqTrend').style.color = '#e53e3e';
-            
-            document.getElementById('trendStrength').textContent = 'Failed';
-            document.getElementById('trendStrength').style.color = '#e53e3e';
-            
-            document.getElementById('spreadFriendly').textContent = 'Check Connection';
-            document.getElementById('spreadFriendly').style.color = '#e53e3e';
-            
-            document.getElementById('trendAnalysisText').textContent = 'Unable to fetch trend data. Check your internet connection and try refreshing. You can also check the browser console for detailed error information.';
-        }
-
-        // Economic Calendar Functions
-        function updateEconomicCalendar() {
-            // Since we can't access paid economic APIs for free, we'll use a predefined calendar
-            // with major recurring events and allow manual updates
-            generateEconomicCalendar();
-            analyzeCalendarRisk();
-            updateCalendarDisplay();
-        }
-
-        function generateEconomicCalendar() {
-            const now = new Date();
-            const events = [];
-            
-            // Generate next 7 days of potential events
-            for (let i = 0; i < 7; i++) {
-                const date = new Date(now.getTime() + (i * 24 * 60 * 60 * 1000));
-                const dayEvents = getEventsForDate(date);
-                events.push(...dayEvents);
-            }
-            
-            economicCalendar.events = events.sort((a, b) => a.date - b.date);
-            economicCalendar.lastUpdate = new Date().toLocaleTimeString();
-        }
-
-        function getEventsForDate(date) {
-            const events = [];
-            const dayOfWeek = date.getDay();
-            const dayOfMonth = date.getDate();
-            
-            // Major recurring events (simplified calendar)
-            const majorEvents = [
-                // FOMC meetings (8 times per year, roughly every 6 weeks)
-                { name: 'FOMC Meeting', impact: 'HIGH', probability: 0.15, description: 'Federal Reserve interest rate decision' },
-                
-                // Monthly events
-                { name: 'Non-Farm Payrolls', impact: 'HIGH', probability: dayOfWeek === 5 && dayOfMonth <= 7 ? 0.9 : 0, description: 'Monthly jobs report' },
-                { name: 'CPI Report', impact: 'HIGH', probability: dayOfWeek === 3 && dayOfMonth >= 10 && dayOfMonth <= 15 ? 0.8 : 0, description: 'Consumer Price Index' },
-                { name: 'PPI Report', impact: 'MEDIUM', probability: dayOfWeek === 2 && dayOfMonth >= 8 && dayOfMonth <= 14 ? 0.7 : 0, description: 'Producer Price Index' },
-                { name: 'Retail Sales', impact: 'MEDIUM', probability: dayOfWeek === 4 && dayOfMonth >= 12 && dayOfMonth <= 18 ? 0.6 : 0, description: 'Monthly retail sales data' },
-                
-                // Weekly events
-                { name: 'Initial Jobless Claims', impact: 'LOW', probability: dayOfWeek === 4 ? 0.9 : 0, description: 'Weekly unemployment claims' },
-                
-                // Quarterly events
-                { name: 'GDP Report', impact: 'HIGH', probability: (dayOfMonth >= 25 || dayOfMonth <= 5) && dayOfWeek === 4 ? 0.3 : 0, description: 'Quarterly GDP data' },
-                
-                // Earnings season (roughly 4 times per year)
-                { name: 'Major Earnings', impact: 'MEDIUM', probability: isEarningsSeason(date) ? 0.6 : 0, description: 'S&P 500 company earnings' }
-            ];
-            
-            majorEvents.forEach(event => {
-                if (Math.random() < event.probability) {
-                    events.push({
-                        date: date,
-                        name: event.name,
-                        impact: event.impact,
-                        description: event.description,
-                        time: getEventTime(event.name)
-                    });
-                }
-            });
-            
-            return events;
-        }
-
-        function isEarningsSeason(date) {
-            const month = date.getMonth();
-            // Earnings seasons: Jan, Apr, Jul, Oct (and 2-3 weeks after)
-            return [0, 1, 3, 4, 6, 7, 9, 10].includes(month);
-        }
-
-        function getEventTime(eventName) {
-            const times = {
-                'FOMC Meeting': '2:00 PM ET',
-                'Non-Farm Payrolls': '8:30 AM ET',
-                'CPI Report': '8:30 AM ET',
-                'PPI Report': '8:30 AM ET',
-                'Retail Sales': '8:30 AM ET',
-                'Initial Jobless Claims': '8:30 AM ET',
-                'GDP Report': '8:30 AM ET',
-                'Major Earnings': 'After Market Close'
-            };
-            return times[eventName] || '8:30 AM ET';
-        }
-
-        function analyzeCalendarRisk() {
-            const events = economicCalendar.events;
-            const highImpactEvents = events.filter(e => e.impact === 'HIGH');
-            const mediumImpactEvents = events.filter(e => e.impact === 'MEDIUM');
-            
-            let riskLevel, advice, analysis, color;
-            
-            if (highImpactEvents.length >= 2) {
-                riskLevel = 'HIGH';
-                advice = 'AVOID TRADING';
-                analysis = `${highImpactEvents.length} high-impact events this week. Avoid opening new credit spreads. Consider closing positions early.`;
-                color = '#e53e3e';
-            } else if (highImpactEvents.length === 1) {
-                riskLevel = 'MEDIUM';
-                advice = 'TRADE WITH CAUTION';
-                analysis = `1 high-impact event this week (${highImpactEvents[0].name}). Be very selective with new positions and avoid trading 1 day before/after.`;
-                color = '#ed8936';
-            } else if (mediumImpactEvents.length >= 3) {
-                riskLevel = 'MEDIUM';
-                advice = 'TRADE WITH CAUTION';
-                analysis = `${mediumImpactEvents.length} medium-impact events this week. Good week for credit spreads but monitor positions closely.`;
-                color = '#ed8936';
-            } else {
-                riskLevel = 'LOW';
-                advice = 'FAVORABLE';
-                analysis = `Light economic calendar this week. Good environment for opening new credit spread positions.`;
-                color = '#38a169';
-            }
-            
-            economicCalendar.riskLevel = riskLevel;
-            economicCalendar.advice = advice;
-            economicCalendar.analysis = analysis;
-            economicCalendar.color = color;
-        }
-
-        function updateCalendarDisplay() {
-            document.getElementById('upcomingEvents').textContent = economicCalendar.events.length;
-            document.getElementById('riskLevel').textContent = economicCalendar.riskLevel;
-            document.getElementById('riskLevel').style.color = economicCalendar.color;
-            document.getElementById('tradingAdvice').textContent = economicCalendar.advice;
-            document.getElementById('tradingAdvice').style.color = economicCalendar.color;
-            
-            // Next major event
-            const nextMajor = economicCalendar.events.find(e => e.impact === 'HIGH');
-            document.getElementById('nextMajorEvent').textContent = nextMajor ? 
-                nextMajor.name : 'None this week';
-            
-            // Events list
-            const eventsContainer = document.getElementById('economicEvents');
-            if (economicCalendar.events.length === 0) {
-                eventsContainer.innerHTML = '<div style="padding: 20px; text-align: center; color: #718096;">No major events this week - Good for trading!</div>';
-            } else {
-                const eventsHtml = economicCalendar.events.map(event => `
-                    <div class="trade-item" style="grid-template-columns: 1fr 2fr 1fr 1fr;">
-                        <div><strong>${event.date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</strong></div>
-                        <div>${event.name}</div>
-                        <div class="${event.impact === 'HIGH' ? 'negative' : event.impact === 'MEDIUM' ? 'neutral' : 'positive'}">${event.impact}</div>
-                        <div style="font-size: 0.8rem;">${event.time}</div>
-                    </div>
-                `).join('');
-                eventsContainer.innerHTML = eventsHtml;
-            }
-            
-            document.getElementById('calendarAnalysisText').textContent = economicCalendar.analysis;
-        }
-
-        // VIX Analysis Functions
-        async function updateVixData() {
-            try {
-                console.log('Attempting to fetch VIX data...');
-                
-                // Try CORS proxy first
-                let response;
-                try {
-                    response = await fetch('https://api.allorigins.win/raw?url=' + encodeURIComponent('https://query1.finance.yahoo.com/v8/finance/chart/%5EVIX'));
-                    console.log('Using CORS proxy for VIX data');
-                } catch (proxyError) {
-                    console.log('CORS proxy failed, trying direct access...');
-                    response = await fetch('https://query1.finance.yahoo.com/v8/finance/chart/%5EVIX');
-                }
-                
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-                
-                const data = await response.json();
-                console.log('VIX API Response:', data);
-                
-                let currentPrice;
-                
-                // Handle Yahoo Finance format
-                if (data.chart && data.chart.result && data.chart.result[0]) {
-                    currentPrice = data.chart.result[0].meta.regularMarketPrice;
-                    console.log('Real VIX data retrieved:', currentPrice);
-                    
-                    vixData.level = currentPrice.toFixed(2);
-                    vixData.lastUpdate = new Date().toLocaleTimeString();
-                    
-                    analyzeVixEnvironment(currentPrice);
-                    updateVixDisplay();
-                    
-                    console.log('VIX data updated successfully with real data');
-                    return; // Success - exit function
-                }
-                
-                throw new Error('Invalid VIX data structure');
-                
-            } catch (error) {
-                console.error('Error fetching real VIX data:', error);
-                console.log('Using simulated VIX as fallback');
-                useSimulatedVIX();
-            }
-        }
-
-        function getSimulatedVIX() {
-            // Generate realistic VIX value between 12-35
-            const baseVIX = 18; // Historical average
-            const volatility = (Math.random() - 0.5) * 10; // +/- 5 points
-            return Math.max(12, Math.min(35, baseVIX + volatility));
-        }
-
-        function useSimulatedVIX() {
-            const simulatedVIX = getSimulatedVIX();
-            vixData.level = simulatedVIX.toFixed(2);
-            vixData.lastUpdate = new Date().toLocaleTimeString();
-            
-            analyzeVixEnvironment(simulatedVIX);
-            updateVixDisplay();
-            
-            // Add note that it's simulated with cleaner formatting
-            document.getElementById('vixAnalysisText').textContent = 
-                `Using simulated VIX (${vixData.level}) due to API access restrictions. ` + vixData.analysis;
-        }
-
-        function analyzeVixEnvironment(vixLevel) {
-            let environment, recommendation, analysis, color;
-            
-            if (vixLevel < 12) {
-                environment = 'Very Low';
-                recommendation = 'AVOID';
-                analysis = `VIX at ${vixLevel} indicates extremely low volatility. Credit spread premiums will be poor. Consider waiting for higher volatility or reduce position sizes significantly.`;
-                color = '#e53e3e';
-            } else if (vixLevel < 15) {
-                environment = 'Low';
-                recommendation = 'CAUTION';
-                analysis = `VIX at ${vixLevel} shows low volatility. Credit spreads may offer limited premiums. Be selective and focus on shorter-term expiration or smaller positions.`;
-                color = '#ed8936';
-            } else if (vixLevel < 20) {
-                environment = 'Ideal';
-                recommendation = 'FAVORABLE';
-                analysis = `VIX at ${vixLevel} is in the sweet spot for credit spreads. Good premium collection with manageable risk. Optimal environment for your strategy.`;
-                color = '#38a169';
-            } else if (vixLevel < 25) {
-                environment = 'Moderate';
-                recommendation = 'GOOD';
-                analysis = `VIX at ${vixLevel} indicates moderate volatility. Credit spreads can work well, but be more selective with strike selection and consider shorter duration.`;
-                color = '#38a169';
-            } else if (vixLevel < 30) {
-                environment = 'High';
-                recommendation = 'CAUTION';
-                analysis = `VIX at ${vixLevel} shows elevated volatility. Credit spreads face higher risk of large moves. Consider wider strikes or wait for volatility to subside.`;
-                color = '#ed8936';
-            } else {
-                environment = 'Very High';
-                recommendation = 'AVOID';
-                analysis = `VIX at ${vixLevel} indicates extreme volatility. Credit spreads are very risky in this environment. Consider defensive strategies or cash positions.`;
-                color = '#e53e3e';
-            }
-            
-            vixData.environment = environment;
-            vixData.recommendation = recommendation;
-            vixData.analysis = analysis;
-            vixData.color = color;
-        }
-
-        function updateVixDisplay() {
-            document.getElementById('vixLevel').textContent = vixData.level || '--';
-            document.getElementById('vixEnvironment').textContent = vixData.environment;
-            document.getElementById('vixEnvironment').style.color = vixData.color || '#2d3748';
-            document.getElementById('vixRecommendation').textContent = vixData.recommendation || '--';
-            document.getElementById('vixRecommendation').style.color = vixData.color || '#2d3748';
-            document.getElementById('lastVixUpdate').textContent = vixData.lastUpdate || '--';
-            document.getElementById('vixAnalysisText').textContent = vixData.analysis || 'Loading market data...';
-        }
-
-        function handleVixError() {
-            document.getElementById('vixLevel').textContent = 'Error';
-            document.getElementById('vixEnvironment').textContent = 'Unable to load';
-            document.getElementById('vixRecommendation').textContent = 'Check connection';
-            document.getElementById('lastVixUpdate').textContent = 'Failed';
-            document.getElementById('vixAnalysisText').textContent = 'Unable to fetch VIX data. Check your internet connection and try refreshing.';
-        }
-
-        // Data persistence functions
-        function saveData() {
-            try {
-                const dataToSave = JSON.stringify(accountData);
-                localStorage.setItem('creditSpreadsData', dataToSave);
-                console.log('Data saved successfully');
-            } catch (error) {
-                console.error('Error saving data:', error);
-            }
-        }
-
-        function loadData() {
-            try {
-                const savedData = localStorage.getItem('creditSpreadsData');
-                if (savedData) {
-                    return JSON.parse(savedData);
-                }
-            } catch (error) {
-                console.error('Error loading data:', error);
-            }
-            return null;
-        }
-
-        function clearAllData() {
-            if (confirm('Are you sure you want to clear all trade data? This cannot be undone.')) {
-                localStorage.removeItem('creditSpreadsData');
-                accountData = {
-                    balance: 3000,
-                    startingBalance: 3000,
-                    trades: [],
-                    accountHistory: [3000]
-                };
-                updateDisplays();
-                alert('All data cleared successfully');
-            }
-        }
-
-        function exportData() {
-            const dataStr = JSON.stringify(accountData, null, 2);
-            const dataBlob = new Blob([dataStr], {type:'application/json'});
-            
-            const link = document.createElement('a');
-            link.href = URL.createObjectURL(dataBlob);
-            link.download = `credit-spreads-data-${new Date().toISOString().split('T')[0]}.json`;
-            link.click();
-        }
-
-        function importData(event) {
-            const file = event.target.files[0];
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    try {
-                        const importedData = JSON.parse(e.target.result);
-                        if (confirm('This will replace all current data. Continue?')) {
-                            accountData = importedData;
-                            saveData();
-                            updateDisplays();
-                            alert('Data imported successfully');
-                        }
-                    } catch (error) {
-                        alert('Error importing data: Invalid file format');
-                    }
-                };
-                reader.readAsText(file);
-            }
-        }
-
-        // Initialize charts
-        let accountChart, riskChart, performanceChart, trendChart;
-
-        function initializeCharts() {
-            // Account Growth Chart
-            const accountCtx = document.getElementById('accountChart').getContext('2d');
-            accountChart = new Chart(accountCtx, {
-                type: 'line',
-                data: {
-                    labels: ['Start'],
-                    datasets: [{
-                        label: 'Account Value',
-                        data: [3000],
-                        borderColor: '#667eea',
-                        backgroundColor: 'rgba(102, 126, 234, 0.1)',
-                        borderWidth: 3,
-                        fill: true,
-                        tension: 0.4
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: { display: false }
-                    },
-                    scales: {
-                        y: {
-                            beginAtZero: false,
-                            ticks: {
-                                callback: function(value) {
-                                    return '$' + value.toLocaleString();
-                                }
-                            }
-                        }
-                    }
-                }
-            });
-
-            // Risk Distribution Chart
-            const riskCtx = document.getElementById('riskChart').getContext('2d');
-            riskChart = new Chart(riskCtx, {
-                type: 'doughnut',
-                data: {
-                    labels: ['Available Capital', 'Capital at Risk'],
-                    datasets: [{
-                        data: [3000, 0],
-                        backgroundColor: ['#38a169', '#e53e3e'],
-                        borderWidth: 0
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: { position: 'bottom' }
-                    }
-                }
-            });
-
-            // Performance Chart
-            const perfCtx = document.getElementById('performanceChart').getContext('2d');
-            performanceChart = new Chart(perfCtx, {
-                type: 'bar',
-                data: {
-                    labels: [],
-                    datasets: [{
-                        label: 'Trade P&L',
-                        data: [],
-                        backgroundColor: [],
-                        borderWidth: 1
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: { display: false }
-                    },
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            ticks: {
-                                callback: function(value) {
-                                    return '$' + value;
-                                }
-                            }
-                        }
-                    }
-                }
-            });
-        }
-
-        function switchTab(tabName) {
-            activeTab = tabName;
-            
-            // Update tab buttons
-            document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
-            event.target.classList.add('active');
-            
-            // Update tab content
-            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
-            document.getElementById(tabName).classList.add('active');
-        }
-
-        function analyzeTrade() {
-            const isActive = activeTab === 'bullPut';
-            const suffix = isActive ? '1' : '2';
-            
-            const currentPrice = parseFloat(document.getElementById(`currentPrice${suffix}`).value);
-            const shortStrike = parseFloat(document.getElementById(`shortStrike${suffix}`).value);
-            const longStrike = parseFloat(document.getElementById(`longStrike${suffix}`).value);
-            const credit = parseFloat(document.getElementById(`creditReceived${suffix}`).value);
-            
-            if (isNaN(currentPrice) || isNaN(shortStrike) || isNaN(longStrike) || isNaN(credit)) {
-                alert('Please fill in all trade parameters');
-                return;
-            }
-            
-            const strikeWidth = Math.abs(shortStrike - longStrike) * 100;
-            const maxProfit = credit;
-            const maxRisk = strikeWidth - credit;
-            const returnPercent = (maxProfit / maxRisk * 100).toFixed(1);
-            
-            let breakeven;
-            if (isActive) { // Bull Put Spread
-                breakeven = shortStrike - (credit / 100);
-            } else { // Bear Call Spread
-                breakeven = shortStrike + (credit / 100);
-            }
-            
-            document.getElementById('maxProfit').textContent = `$${maxProfit}`;
-            document.getElementById('maxRisk').textContent = `$${maxRisk}`;
-            document.getElementById('returnPercent').textContent = `${returnPercent}%`;
-            document.getElementById('breakeven').textContent = `$${breakeven.toFixed(2)}`;
-            
-            document.getElementById('tradeAnalysis').style.display = 'block';
-            
-            // Update insights with VIX consideration
-            updateInsights(maxRisk, returnPercent, currentPrice, shortStrike, isActive);
-        }
-
-        function addTrade() {
-            const isActive = activeTab === 'bullPut';
-            const suffix = isActive ? '1' : '2';
-            
-            const underlying = document.getElementById(`underlying${suffix}`).value;
-            const currentPrice = parseFloat(document.getElementById(`currentPrice${suffix}`).value);
-            const shortStrike = parseFloat(document.getElementById(`shortStrike${suffix}`).value);
-            const longStrike = parseFloat(document.getElementById(`longStrike${suffix}`).value);
-            const credit = parseFloat(document.getElementById(`creditReceived${suffix}`).value);
-            const dte = parseInt(document.getElementById(`dte${suffix}`).value);
-            
-            if (isNaN(currentPrice) || isNaN(shortStrike) || isNaN(longStrike) || isNaN(credit) || isNaN(dte)) {
-                alert('Please fill in all trade parameters and analyze first');
-                return;
-            }
-            
-            const strikeWidth = Math.abs(shortStrike - longStrike) * 100;
-            const maxRisk = strikeWidth - credit;
-            
-            // Risk management check
-            if (maxRisk > accountData.balance * 0.15) {
-                alert(`Trade risk ($${maxRisk}) exceeds 15% of account. Maximum allowed: $${(accountData.balance * 0.15).toFixed(0)}`);
-                return;
-            }
-            
-            const trade = {
-                id: Date.now(),
-                type: isActive ? 'Bull Put Spread' : 'Bear Call Spread',
-                underlying: underlying,
-                openDate: new Date().toLocaleDateString(),
-                currentPrice: currentPrice,
-                shortStrike: shortStrike,
-                longStrike: longStrike,
-                credit: credit,
-                maxRisk: maxRisk,
-                dte: dte,
-                status: 'Open',
-                pnl: 0,
-                closeDate: null
-            };
-            
-            accountData.trades.push(trade);
-            saveDataWithSync(); // Save with auto-sync
-            updateDisplays();
-            clearForm();
-            alert('Trade added successfully!');
-        }
-
-        function closeTrade(tradeId, pnl) {
-            const trade = accountData.trades.find(t => t.id === tradeId);
-            if (trade) {
-                trade.status = 'Closed';
-                trade.pnl = pnl;
-                trade.closeDate = new Date().toLocaleDateString();
-                accountData.balance += pnl;
-                accountData.accountHistory.push(accountData.balance);
-                saveDataWithSync(); // Save with auto-sync
-                updateDisplays();
-            }
-        }
-
-        function updateDisplays() {
-            // Account metrics
-            const totalReturn = ((accountData.balance - accountData.startingBalance) / accountData.startingBalance * 100).toFixed(1);
-            const openTrades = accountData.trades.filter(t => t.status === 'Open');
-            const closedTrades = accountData.trades.filter(t => t.status === 'Closed');
-            const winRate = closedTrades.length > 0 ? (closedTrades.filter(t => t.pnl > 0).length / closedTrades.length * 100).toFixed(1) : '0';
-            
-            document.getElementById('accountValue').textContent = `${accountData.balance.toLocaleString()}`;
-            document.getElementById('totalReturn').textContent = `+${totalReturn}%`;
-            document.getElementById('totalReturn').className = totalReturn >= 0 ? 'metric-value positive' : 'metric-value negative';
-            document.getElementById('winRate').textContent = `${winRate}%`;
-            
-            // Risk metrics
-            const capitalAtRisk = openTrades.reduce((sum, trade) => sum + trade.maxRisk, 0);
-            document.getElementById('activePositions').textContent = openTrades.length;
-            document.getElementById('capitalAtRisk').textContent = `${capitalAtRisk}`;
-            document.getElementById('maxLoss').textContent = `${capitalAtRisk}`;
-            
-            // Risk level
-            const riskPercent = capitalAtRisk / accountData.balance;
-            let riskLevel = 'Low Risk';
-            let riskClass = 'risk-low';
-            if (riskPercent > 0.4) {
-                riskLevel = 'High Risk';
-                riskClass = 'risk-high';
-            } else if (riskPercent > 0.2) {
-                riskLevel = 'Medium Risk';
-                riskClass = 'risk-medium';
-            }
-            
-            const riskElement = document.getElementById('riskLevel');
-            riskElement.textContent = riskLevel;
-            riskElement.className = `risk-indicator ${riskClass}`;
-            
-            // Performance metrics
-            if (closedTrades.length > 0) {
-                const avgReturn = (closedTrades.reduce((sum, trade) => sum + (trade.pnl / trade.maxRisk * 100), 0) / closedTrades.length).toFixed(1);
-                const bestTrade = Math.max(...closedTrades.map(t => t.pnl));
-                const worstTrade = Math.min(...closedTrades.map(t => t.pnl));
-                
-                document.getElementById('avgReturn').textContent = `${avgReturn}%`;
-                document.getElementById('bestTrade').textContent = `${bestTrade}`;
-                document.getElementById('worstTrade').textContent = `${worstTrade}`;
-            }
-            
-            // Update charts
-            updateCharts();
-            updateTradeHistory();
-        }
-
-        function updateCharts() {
-            // Account chart
-            const labels = accountData.accountHistory.map((_, i) => i === 0 ? 'Start' : `Trade ${i}`);
-            accountChart.data.labels = labels;
-            accountChart.data.datasets[0].data = accountData.accountHistory;
-            accountChart.update();
-            
-            // Risk chart
-            const openTrades = accountData.trades.filter(t => t.status === 'Open');
-            const capitalAtRisk = openTrades.reduce((sum, trade) => sum + trade.maxRisk, 0);
-            riskChart.data.datasets[0].data = [accountData.balance - capitalAtRisk, capitalAtRisk];
-            riskChart.update();
-            
-            // Performance chart
-            const closedTrades = accountData.trades.filter(t => t.status === 'Closed');
-            if (closedTrades.length > 0) {
-                performanceChart.data.labels = closedTrades.map((_, i) => `Trade ${i + 1}`);
-                performanceChart.data.datasets[0].data = closedTrades.map(t => t.pnl);
-                performanceChart.data.datasets[0].backgroundColor = closedTrades.map(t => t.pnl >= 0 ? '#38a169' : '#e53e3e');
-                performanceChart.update();
-            }
-        }
-
-        function updateTradeHistory() {
-            const historyContainer = document.getElementById('tradeHistory');
-            
-            if (accountData.trades.length === 0) {
-                historyContainer.innerHTML = '<div style="padding: 20px; text-align: center; color: #718096;">No trades yet. Add your first trade to get started!</div>';
-                return;
-            }
-            
-            const tradesHtml = accountData.trades.map(trade => `
-                <div class="trade-item status-${trade.status.toLowerCase()}">
-                    <div><strong>${trade.type}</strong></div>
-                    <div>${trade.underlying}</div>
-                    <div>${trade.shortStrike}/${trade.longStrike}</div>
-                    <div>${trade.credit}</div>
-                    <div class="${trade.pnl >= 0 ? 'positive' : 'negative'}">${trade.status === 'Closed' ? `${trade.pnl}` : 'Open'}</div>
-                    <div>${trade.status === 'Open' ? 
-                        `<button onclick="closeTrade(${trade.id}, parseFloat(prompt('Enter P&L (use negative for losses):')) || 0)" style="padding: 5px 10px; font-size: 0.8rem;">Close</button>` : 
-                        trade.closeDate}</div>
-                </div>
-            `).join('');
-            
-            historyContainer.innerHTML = tradesHtml;
-        }
-
-        function updateInsights(maxRisk, returnPercent, currentPrice, shortStrike, isBullPut) {
-            const insightsContainer = document.getElementById('insights');
-            const riskPercentOfAccount = (maxRisk / accountData.balance * 100).toFixed(1);
-            const distance = isBullPut ? ((currentPrice - shortStrike) / currentPrice * 100).toFixed(1) : ((shortStrike - currentPrice) / currentPrice * 100).toFixed(1);
-            
-            let insights = [];
-            
-            // Time Decay Optimization - Check if data exists
-            if (timingAnalysis.entryRating) {
-                if (timingAnalysis.entryRating === 'AVOID') {
-                    insights.push(`<div class="insight-item"><strong>⏰ Poor Timing:</strong> ${timingAnalysis.analysis}</div>`);
-                } else if (timingAnalysis.entryRating === 'POOR') {
-                    insights.push(`<div class="insight-item"><strong>⚠️ Suboptimal Entry:</strong> ${timingAnalysis.analysis}</div>`);
-                } else if (timingAnalysis.entryRating === 'EXCELLENT') {
-                    insights.push(`<div class="insight-item"><strong>🎯 Perfect Timing:</strong> ${timingAnalysis.analysis}</div>`);
-                } else if (timingAnalysis.entryRating === 'GOOD') {
-                    insights.push(`<div class="insight-item"><strong>✅ Good Timing:</strong> ${timingAnalysis.analysis}</div>`);
-                }
-            }
-            
-            // Market Trend Warning - Check if data exists
-            if (trendAnalysis.environment) {
-                if (trendAnalysis.environment === 'AVOID') {
-                    insights.push(`<div class="insight-item"><strong>🚨 Strong Trend Alert:</strong> ${trendAnalysis.analysis} Consider waiting for trend exhaustion.</div>`);
-                } else if (trendAnalysis.environment === 'CAUTION') {
-                    insights.push(`<div class="insight-item"><strong>⚠️ Trend Caution:</strong> ${trendAnalysis.analysis}</div>`);
-                } else if (trendAnalysis.environment === 'EXCELLENT') {
-                    insights.push(`<div class="insight-item"><strong>🎯 Perfect Environment:</strong> ${trendAnalysis.analysis}</div>`);
-                } else if (trendAnalysis.environment === 'GOOD') {
-                    insights.push(`<div class="insight-item"><strong>✅ Favorable Trends:</strong> ${trendAnalysis.analysis}</div>`);
-                }
-            }
-            
-            // Economic Calendar Warning - Check if data exists
-            if (economicCalendar.riskLevel) {
-                if (economicCalendar.riskLevel === 'HIGH') {
-                    insights.push(`<div class="insight-item"><strong>🚨 High Calendar Risk:</strong> Major economic events this week. Avoid opening new positions. Consider closing existing trades early.</div>`);
-                } else if (economicCalendar.riskLevel === 'MEDIUM') {
-                    insights.push(`<div class="insight-item"><strong>⚠️ Calendar Caution:</strong> Some market-moving events this week. Be selective with new positions and monitor closely.</div>`);
-                } else if (economicCalendar.events && economicCalendar.events.length === 0) {
-                    insights.push(`<div class="insight-item"><strong>✅ Clear Calendar:</strong> Light economic calendar this week - excellent environment for credit spreads.</div>`);
-                }
-            }
-            
-            // VIX Environment Insight - Check if data exists
-            if (vixData.level) {
-                const vixLevel = parseFloat(vixData.level);
-                if (!isNaN(vixLevel)) {
-                    if (vixLevel < 15) {
-                        insights.push(`<div class="insight-item"><strong>⚠️ Low Volatility:</strong> VIX at ${vixData.level} suggests poor premiums. Consider waiting for better volatility or reducing position size.</div>`);
-                    } else if (vixLevel > 25) {
-                        insights.push(`<div class="insight-item"><strong>🌪️ High Volatility:</strong> VIX at ${vixData.level} indicates elevated risk. Consider wider strikes or smaller positions.</div>`);
-                    } else {
-                        insights.push(`<div class="insight-item"><strong>✅ Good Environment:</strong> VIX at ${vixData.level} is favorable for credit spreads. Good timing for new positions.</div>`);
-                    }
-                }
-            }
-            
-            // Risk management insight
-            if (maxRisk > accountData.balance * 0.15) {
-                insights.push(`<div class="insight-item"><strong>⚠️ Risk Warning:</strong> This trade risks ${riskPercentOfAccount}% of your account. Consider reducing position size to stay under 15% limit.</div>`);
-            } else {
-                insights.push(`<div class="insight-item"><strong>✅ Risk Check:</strong> Trade risk (${riskPercentOfAccount}%) is within safe limits. Good position sizing!</div>`);
-            }
-            
-            // Return analysis
-            if (returnPercent > 25) {
-                insights.push(`<div class="insight-item"><strong>📈 High Return:</strong> ${returnPercent}% return is attractive but may indicate higher risk. Verify strike selection.</div>`);
-            } else if (returnPercent < 15) {
-                insights.push(`<div class="insight-item"><strong>📊 Conservative:</strong> ${returnPercent}% return is conservative. Consider if risk/reward meets your targets.</div>`);
-            } else {
-                insights.push(`<div class="insight-item"><strong>🎯 Good Target:</strong> ${returnPercent}% return fits the 15-25% sweet spot for credit spreads.</div>`);
-            }
-            
-            // Probability insight
-            if (distance > 5) {
-                insights.push(`<div class="insight-item"><strong>🛡️ Safe Distance:</strong> ${distance}% out-of-money provides good cushion. High probability trade.</div>`);
-            } else if (distance < 2) {
-                insights.push(`<div class="insight-item"><strong>⚡ Close to Strike:</strong> Only ${distance}% away from short strike. Higher risk but better premium.</div>`);
-            } else {
-                insights.push(`<div class="insight-item"><strong>⚖️ Balanced:</strong> ${distance}% distance offers good balance of premium and safety.</div>`);
-            }
-            
-            // Account building insight
-            const openTrades = accountData.trades.filter(t => t.status === 'Open').length;
-            if (openTrades >= 3) {
-                insights.push(`<div class="insight-item"><strong>📊 Portfolio:</strong> You have ${openTrades} open positions. Consider concentration risk and correlation.</div>`);
-            } else {
-                insights.push(`<div class="insight-item"><strong>📈 Scaling:</strong> Room for ${3 - openTrades} more positions to optimize capital usage while managing risk.</div>`);
-            }
-            
-            insightsContainer.innerHTML = insights.join('');
-        }
-
-        function clearForm() {
-            // Clear bull put form
-            document.getElementById('currentPrice1').value = '';
-            document.getElementById('shortStrike1').value = '';
-            document.getElementById('longStrike1').value = '';
-            document.getElementById('creditReceived1').value = '';
-            document.getElementById('dte1').value = '';
-            
-            // Clear bear call form
-            document.getElementById('currentPrice2').value = '';
-            document.getElementById('shortStrike2').value = '';
-            document.getElementById('longStrike2').value = '';
-            document.getElementById('creditReceived2').value = '';
-            document.getElementById('dte2').value = '';
-            
-            // Hide analysis
-            document.getElementById('tradeAnalysis').style.display = 'none';
-        }
-
-        // Initialize on page load
-        window.onload = function() {
-            initializeCharts();
-            updateDisplays(); // This will load saved data
-            updateVixData(); // Load VIX data on startup
-            updateEconomicCalendar(); // Load economic calendar on startup
-            updateTrendAnalysis(); // Load trend analysis on startup
-            updateTimingAnalysis(); // Load timing analysis on startup
-            
-            // Initialize sync display
-            const deviceElement = document.getElementById('currentDevice');
-            if (deviceElement) {
-                deviceElement.textContent = getDeviceId().slice(-4);
-            }
-            
-            // Set manual sync as default
-            document.getElementById('syncStatus').textContent = 'Manual Mode';
-            document.getElementById('syncProvider').textContent = 'Export/Import';
-        };
-
-        function setupCloudSync() {
-            const modal = createSetupModal();
-            document.body.appendChild(modal);
-        }
-    </script>
-</body>
-</html>
-
-        function clearForm() {
-            // Clear bull put form
-            document.getElementById('currentPrice1').value = '';
-            document.getElementById('shortStrike1').value = '';
-            document.getElementById('longStrike1').value = '';
-            document.getElementById('creditReceived1').value = '';
-            document.getElementById('dte1').value = '';
-            
-            // Clear bear call form
-            document.getElementById('currentPrice2').value = '';
-            document.getElementById('shortStrike2').value = '';
-            document.getElementById('longStrike2').value = '';
-            document.getElementById('creditReceived2').value = '';
-            document.getElementById('dte2').value = '';
-            
-            // Hide analysis
-            document.getElementById('tradeAnalysis').style.display = 'none';
-        }
-
-        // Initialize on page load
-        window.onload = function() {
-            initializeCharts();
-            updateDisplays(); // This will load saved data
-            updateVixData(); // Load VIX data on startup
-        };
-    </script>
-</body>
-</html>

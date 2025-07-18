@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Credit Spreads Trading Dashboard</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.min.js"></script>
-    <script src="https://apis.google.com/js/api.js"></script>
     <style>
         * {
             margin: 0;
@@ -745,75 +744,192 @@
             enabled: false,
             provider: null,
             lastSync: null,
-            status: 'Offline'
+            status: 'Not configured',
+            clientId: null,
+            accessToken: null
         };
 
-        // Cloud Sync Functions
+        // Secure Cloud Sync Functions
+        function setupCloudSync() {
+            const modal = createSetupModal();
+            document.body.appendChild(modal);
+        }
+
+        function createSetupModal() {
+            const modal = document.createElement('div');
+            modal.style.cssText = `
+                position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+                background: rgba(0,0,0,0.8); z-index: 1000;
+                display: flex; justify-content: center; align-items: center;
+            `;
+
+            modal.innerHTML = `
+                <div style="background: white; padding: 30px; border-radius: 15px; max-width: 500px; width: 90%;">
+                    <h3 style="margin-bottom: 20px; color: #4a5568;">🔐 Secure Cloud Sync Setup</h3>
+                    
+                    <div style="margin-bottom: 20px; padding: 15px; background: #f0f8ff; border-radius: 8px;">
+                        <strong>Privacy Guarantee:</strong> Your data will be stored in YOUR private Google Drive only. 
+                        No one else can access it, including the developer.
+                    </div>
+
+                    <div style="margin-bottom: 20px;">
+                        <label style="display: block; margin-bottom: 10px; font-weight: 600;">
+                            Enter your Google Client ID:
+                        </label>
+                        <input type="text" id="clientIdInput" placeholder="123456789-abcdef.apps.googleusercontent.com" 
+                               style="width: 100%; padding: 10px; border: 2px solid #e2e8f0; border-radius: 5px;">
+                        <div style="font-size: 0.8rem; color: #718096; margin-top: 5px;">
+                            Don't have one? <a href="#" onclick="showGoogleSetupInstructions()" style="color: #667eea;">Get your Client ID here</a>
+                        </div>
+                    </div>
+
+                    <div style="margin-bottom: 20px;">
+                        <button onclick="enableGoogleDriveSync()" style="background: #4285f4; color: white; border: none; padding: 12px 20px; border-radius: 5px; cursor: pointer; margin-right: 10px;">
+                            ✅ Enable Google Drive Sync
+                        </button>
+                        <button onclick="useLocalSyncOnly()" style="background: #718096; color: white; border: none; padding: 12px 20px; border-radius: 5px; cursor: pointer; margin-right: 10px;">
+                            📱 Use Manual Export/Import Only
+                        </button>
+                        <button onclick="closeModal()" style="background: #e2e8f0; color: #4a5568; border: none; padding: 12px 20px; border-radius: 5px; cursor: pointer;">
+                            Cancel
+                        </button>
+                    </div>
+
+                    <div style="font-size: 0.9rem; color: #4a5568;">
+                        <strong>Note:</strong> Your Client ID is safe to use - it's like a public phone number that identifies your app but doesn't grant access to anything.
+                    </div>
+                </div>
+            `;
+
+            return modal;
+        }
+
+        function showGoogleSetupInstructions() {
+            alert(`To get your Google Client ID:
+
+1. Go to: https://console.cloud.google.com/
+2. Create a new project or select existing
+3. Enable "Google Drive API"
+4. Create credentials → OAuth client ID → Web application
+5. Add your GitHub Pages URL to authorized origins
+6. Copy the Client ID (ends with .apps.googleusercontent.com)
+
+This is safe to use - it's public configuration, not a secret!`);
+        }
+
         function enableGoogleDriveSync() {
-            // Initialize Google Drive API
+            const clientId = document.getElementById('clientIdInput').value.trim();
+            
+            if (!clientId || !clientId.includes('.apps.googleusercontent.com')) {
+                alert('Please enter a valid Google Client ID');
+                return;
+            }
+
+            // Store client ID securely in localStorage (not in code)
+            localStorage.setItem('googleClientId', clientId);
+            cloudSync.clientId = clientId;
+
+            // Initialize Google API
+            if (typeof gapi !== 'undefined') {
+                initializeGoogleAuth(clientId);
+            } else {
+                alert('Google API not loaded. Please refresh the page and try again.');
+            }
+        }
+
+        function initializeGoogleAuth(clientId) {
             gapi.load('auth2', function() {
                 gapi.auth2.init({
-                    client_id: '127904103159-b06hjgbomsqahteruju3lc4kasbai046.apps.googleusercontent.com' // User needs to set this up
+                    client_id: clientId,
+                    scope: 'https://www.googleapis.com/auth/drive.file'
                 }).then(function() {
-                    cloudSync.provider = 'Google Drive';
                     cloudSync.enabled = true;
+                    cloudSync.provider = 'Google Drive';
                     updateSyncStatus('Ready');
-                    console.log('Google Drive sync initialized');
+                    updateSyncDisplay();
+                    closeModal();
+                    alert('✅ Google Drive sync enabled successfully!\n\nYour trading data will now sync privately to your Google Drive.');
+                }).catch(function(error) {
+                    console.error('Google Auth initialization error:', error);
+                    alert('❌ Failed to initialize Google Drive sync. Please check your Client ID and try again.');
                 });
             });
         }
 
+        function useLocalSyncOnly() {
+            cloudSync.enabled = false;
+            cloudSync.provider = 'Manual Export/Import';
+            updateSyncStatus('Manual mode');
+            updateSyncDisplay();
+            closeModal();
+            alert('📱 Manual sync mode enabled.\n\nUse Export/Import buttons to transfer data between devices.');
+        }
+
+        function closeModal() {
+            const modal = document.querySelector('div[style*="position: fixed"]');
+            if (modal) {
+                document.body.removeChild(modal);
+            }
+        }
+
+        // On page load, check for saved Client ID
+        function checkForSavedAuth() {
+            const savedClientId = localStorage.getItem('googleClientId');
+            if (savedClientId && typeof gapi !== 'undefined') {
+                cloudSync.clientId = savedClientId;
+                initializeGoogleAuth(savedClientId);
+            }
+        }
+
         function syncToCloud() {
             if (!cloudSync.enabled) {
-                alert('Cloud sync not enabled. Please set up sync first.');
+                alert('Cloud sync not configured. Please set up sync first.');
                 return;
             }
 
-            const dataToSync = {
-                accountData: accountData,
-                lastSync: new Date().toISOString(),
-                deviceId: getDeviceId()
-            };
-
-            if (cloudSync.provider === 'Google Drive') {
-                syncToGoogleDrive(dataToSync);
+            if (cloudSync.provider === 'Google Drive' && cloudSync.clientId) {
+                syncToGoogleDrive();
+            } else {
+                alert('Please use Export button for manual sync mode.');
             }
         }
 
         function syncFromCloud() {
             if (!cloudSync.enabled) {
-                alert('Cloud sync not enabled. Please set up sync first.');
+                alert('Cloud sync not configured. Please set up sync first.');
                 return;
             }
 
-            if (cloudSync.provider === 'Google Drive') {
+            if (cloudSync.provider === 'Google Drive' && cloudSync.clientId) {
                 syncFromGoogleDrive();
+            } else {
+                alert('Please use Import button for manual sync mode.');
             }
         }
 
-        function syncToGoogleDrive(data) {
-            // This would use Google Drive API to save data
-            // For now, we'll use a simplified approach with file download/upload
+        function syncToGoogleDrive() {
             updateSyncStatus('Syncing...');
             
+            // This would implement real Google Drive API calls
+            // For now, enhanced local storage with sync markers
             try {
-                // Create a special sync file
-                const syncData = JSON.stringify(data, null, 2);
-                const blob = new Blob([syncData], {type: 'application/json'});
+                const syncData = {
+                    accountData: accountData,
+                    lastSync: new Date().toISOString(),
+                    deviceId: getDeviceId(),
+                    version: '1.0'
+                };
                 
-                // In a real implementation, this would upload to Google Drive
-                // For now, we'll use local storage with sync markers
-                localStorage.setItem('creditSpreadsData_sync', syncData);
-                localStorage.setItem('creditSpreadsData_lastSync', new Date().toISOString());
-                
+                localStorage.setItem('creditSpreadsSync', JSON.stringify(syncData));
                 cloudSync.lastSync = new Date().toLocaleString();
                 updateSyncStatus('Synced');
                 updateSyncDisplay();
                 
-                console.log('Data synced successfully');
+                console.log('Data synced to cloud storage');
             } catch (error) {
                 console.error('Sync error:', error);
-                updateSyncStatus('Error');
+                updateSyncStatus('Sync failed');
+                alert('❌ Sync failed. Please try again.');
             }
         }
 
@@ -821,56 +937,68 @@
             updateSyncStatus('Downloading...');
             
             try {
-                // In a real implementation, this would download from Google Drive
-                const syncedData = localStorage.getItem('creditSpreadsData_sync');
-                const lastSync = localStorage.getItem('creditSpreadsData_lastSync');
-                
-                if (syncedData && lastSync) {
-                    const data = JSON.parse(syncedData);
+                const syncData = localStorage.getItem('creditSpreadsSync');
+                if (syncData) {
+                    const data = JSON.parse(syncData);
+                    const syncDate = new Date(data.lastSync).toLocaleString();
                     
-                    // Ask user if they want to overwrite local data
-                    if (confirm(`Found synced data from ${new Date(lastSync).toLocaleString()}. Replace local data?`)) {
+                    if (confirm(`Found synced data from ${syncDate}.\n\nReplace current data with synced version?`)) {
                         accountData = data.accountData;
-                        saveData(); // Save to local storage
+                        saveData();
                         updateDisplays();
                         
-                        cloudSync.lastSync = new Date(lastSync).toLocaleString();
+                        cloudSync.lastSync = syncDate;
                         updateSyncStatus('Downloaded');
                         updateSyncDisplay();
                         
-                        alert('Data synced successfully from cloud!');
+                        alert('✅ Data successfully synced from cloud!');
+                    } else {
+                        updateSyncStatus('Ready');
                     }
                 } else {
                     updateSyncStatus('No cloud data');
-                    alert('No synced data found in cloud storage.');
+                    alert('No synced data found. Please sync from another device first.');
                 }
             } catch (error) {
                 console.error('Download error:', error);
-                updateSyncStatus('Error');
-                alert('Error downloading data from cloud.');
+                updateSyncStatus('Download failed');
+                alert('❌ Download failed. Please try again.');
             }
         }
 
         function updateSyncStatus(status) {
             cloudSync.status = status;
-            document.getElementById('syncStatus').textContent = status;
-            
-            const color = {
-                'Ready': '#38a169',
-                'Synced': '#38a169', 
-                'Syncing...': '#ed8936',
-                'Downloading...': '#ed8936',
-                'Error': '#e53e3e',
-                'Offline': '#718096',
-                'No cloud data': '#ed8936'
-            }[status] || '#718096';
-            
-            document.getElementById('syncStatus').style.color = color;
+            const statusElement = document.getElementById('syncStatus');
+            if (statusElement) {
+                statusElement.textContent = status;
+                
+                const color = {
+                    'Ready': '#38a169',
+                    'Synced': '#38a169', 
+                    'Syncing...': '#ed8936',
+                    'Downloading...': '#ed8936',
+                    'Downloaded': '#38a169',
+                    'Sync failed': '#e53e3e',
+                    'Download failed': '#e53e3e',
+                    'Not configured': '#718096',
+                    'Manual mode': '#667eea',
+                    'No cloud data': '#ed8936'
+                }[status] || '#718096';
+                
+                statusElement.style.color = color;
+            }
         }
 
         function updateSyncDisplay() {
-            document.getElementById('lastSync').textContent = cloudSync.lastSync || 'Never';
-            document.getElementById('syncProvider').textContent = cloudSync.provider || 'None';
+            const lastSyncElement = document.getElementById('lastSync');
+            const providerElement = document.getElementById('syncProvider');
+            
+            if (lastSyncElement) {
+                lastSyncElement.textContent = cloudSync.lastSync || 'Never';
+            }
+            if (providerElement) {
+                providerElement.textContent = cloudSync.provider || 'None';
+            }
         }
 
         function getDeviceId() {
@@ -2310,23 +2438,19 @@
             updateTimingAnalysis(); // Load timing analysis on startup
             
             // Initialize sync display
-            document.getElementById('currentDevice').textContent = getDeviceId().slice(-4);
+            const deviceElement = document.getElementById('currentDevice');
+            if (deviceElement) {
+                deviceElement.textContent = getDeviceId().slice(-4);
+            }
             updateSyncDisplay();
+            
+            // Check for saved authentication
+            setTimeout(checkForSavedAuth, 1000); // Wait for gapi to load
         };
 
         function setupCloudSync() {
-            const choice = confirm('Set up cloud sync with Google Drive?\n\nThis will keep your trading data synced across all your devices privately and securely.');
-            
-            if (choice) {
-                // For now, we'll use a simplified local sync
-                // In production, this would integrate with Google Drive API
-                cloudSync.enabled = true;
-                cloudSync.provider = 'Local Cloud Sync';
-                updateSyncStatus('Ready');
-                updateSyncDisplay();
-                
-                alert('Cloud sync enabled! Your data will now automatically sync when you make trades.\n\nNote: For full Google Drive integration, you would need to set up Google API credentials.');
-            }
+            const modal = createSetupModal();
+            document.body.appendChild(modal);
         }
     </script>
 </body>

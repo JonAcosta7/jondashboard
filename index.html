@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Credit Spreads Trading Dashboard</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.min.js"></script>
-    <script src="https://apis.google.com/js/api.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.min.js"></script>
+    <script src="https://accounts.google.com/gsi/client"></script>
     <style>
         * {
             margin: 0;
@@ -777,10 +777,13 @@
                         <label style="display: block; margin-bottom: 10px; font-weight: 600;">
                             Enter your Google Client ID:
                         </label>
-                        <input type="text" id="clientIdInput" placeholder="123456789-abcdef.apps.googleusercontent.com" 
-                               style="width: 100%; padding: 10px; border: 2px solid #e2e8f0; border-radius: 5px;">
+                        <input type="text" id="clientIdInput" placeholder="123456789012-abcdefg...xyz.apps.googleusercontent.com" 
+                               style="width: 100%; padding: 10px; border: 2px solid #e2e8f0; border-radius: 5px; font-family: monospace; font-size: 0.9rem;">
                         <div style="font-size: 0.8rem; color: #718096; margin-top: 5px;">
                             Don't have one? <a href="#" onclick="showGoogleSetupInstructions()" style="color: #667eea;">Get your Client ID here</a>
+                        </div>
+                        <div style="font-size: 0.8rem; color: #e53e3e; margin-top: 5px;">
+                            ⚠️ Must end with .apps.googleusercontent.com
                         </div>
                     </div>
 
@@ -830,20 +833,25 @@ This is safe to use - it's public configuration, not a secret!`);
             localStorage.setItem('googleClientId', clientId);
             cloudSync.clientId = clientId;
 
-            // Initialize Google API
-            if (typeof gapi !== 'undefined') {
+            // Initialize Google Identity Services
+            if (typeof google !== 'undefined' && google.accounts) {
                 initializeGoogleAuth(clientId);
             } else {
-                alert('Google API not loaded. Please refresh the page and try again.');
+                alert('Google Identity Services not loaded. Please refresh the page and try again.');
             }
         }
 
         function initializeGoogleAuth(clientId) {
+            console.log('Initializing Google Auth with Client ID:', clientId);
+            
             gapi.load('auth2', function() {
+                console.log('Google Auth2 library loaded');
+                
                 gapi.auth2.init({
                     client_id: clientId,
                     scope: 'https://www.googleapis.com/auth/drive.file'
-                }).then(function() {
+                }).then(function(authInstance) {
+                    console.log('Google Auth initialized successfully');
                     cloudSync.enabled = true;
                     cloudSync.provider = 'Google Drive';
                     updateSyncStatus('Ready');
@@ -852,7 +860,30 @@ This is safe to use - it's public configuration, not a secret!`);
                     alert('✅ Google Drive sync enabled successfully!\n\nYour trading data will now sync privately to your Google Drive.');
                 }).catch(function(error) {
                     console.error('Google Auth initialization error:', error);
-                    alert('❌ Failed to initialize Google Drive sync. Please check your Client ID and try again.');
+                    
+                    let errorMessage = '❌ Failed to initialize Google Drive sync.\n\n';
+                    
+                    if (error.error === 'idpiframe_initialization_failed') {
+                        errorMessage += 'Issue: Google authentication popup blocked or failed to load.\n\n';
+                        errorMessage += 'Solutions:\n';
+                        errorMessage += '• Check if popup blockers are enabled\n';
+                        errorMessage += '• Verify your GitHub Pages URL is in Google Console authorized origins\n';
+                        errorMessage += '• Try in incognito/private browser window\n';
+                        errorMessage += '• Make sure you\'re on HTTPS (GitHub Pages URL)';
+                    } else if (error.error === 'invalid_client') {
+                        errorMessage += 'Issue: Invalid Client ID\n\n';
+                        errorMessage += 'Solutions:\n';
+                        errorMessage += '• Double-check your Client ID format\n';
+                        errorMessage += '• Ensure it ends with .apps.googleusercontent.com\n';
+                        errorMessage += '• Verify the Client ID is from the correct Google project\n';
+                        errorMessage += '• Make sure you copied the Client ID (not Client Secret)';
+                    } else {
+                        errorMessage += `Error details: ${error.error || 'Unknown error'}\n`;
+                        errorMessage += `Error message: ${error.details || 'No details available'}\n\n`;
+                        errorMessage += 'Check the browser console for more information.';
+                    }
+                    
+                    alert(errorMessage);
                 });
             });
         }

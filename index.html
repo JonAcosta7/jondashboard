@@ -4,8 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Credit Spreads Trading Dashboard</title>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.min.js"></script>
-    <script src="https://accounts.google.com/gsi/client"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
     <style>
         * {
             margin: 0;
@@ -633,36 +632,35 @@
 
             <!-- Cloud Sync -->
             <div class="card">
-                <h3>Cloud Sync</h3>
+                <h3>Device Sync</h3>
                 <div class="metrics-row">
                     <div class="metric">
-                        <div class="metric-value" id="syncStatus">Offline</div>
+                        <div class="metric-value" id="syncStatus">Manual Mode</div>
                         <div class="metric-label">Sync Status</div>
                     </div>
                     <div class="metric">
-                        <div class="metric-value" id="syncProvider">None</div>
-                        <div class="metric-label">Provider</div>
+                        <div class="metric-value" id="syncProvider">Export/Import</div>
+                        <div class="metric-label">Method</div>
                     </div>
                     <div class="metric">
-                        <div class="metric-value" id="lastSync">Never</div>
-                        <div class="metric-label">Last Sync</div>
+                        <div class="metric-value" id="lastSync">--</div>
+                        <div class="metric-label">Last Export</div>
                     </div>
                     <div class="metric">
                         <div class="metric-value" id="currentDevice">--</div>
-                        <div class="metric-label">This Device</div>
+                        <div class="metric-label">Device ID</div>
                     </div>
                 </div>
                 
                 <div class="form-row">
-                    <button onclick="setupCloudSync()" style="background: linear-gradient(135deg, #4285f4, #34a853);">☁️ Setup Cloud Sync</button>
-                    <button onclick="syncToCloud()">📤 Sync to Cloud</button>
-                    <button onclick="syncFromCloud()">📥 Sync from Cloud</button>
+                    <button onclick="exportDataWithSync()" style="background: linear-gradient(135deg, #38a169, #48bb78);">📤 Export for Other Devices</button>
+                    <button onclick="document.getElementById('importFile').click()" style="background: linear-gradient(135deg, #667eea, #764ba2);">📥 Import from Other Device</button>
                 </div>
                 
                 <div style="margin-top: 15px; padding: 15px; background: #f0f8ff; border-radius: 8px; font-size: 0.9rem; color: #4a5568;">
-                    <strong>🔐 Privacy:</strong> Your data syncs to YOUR private cloud storage only. No third parties can access your trading information.
+                    <strong>📱 Multi-Device Access:</strong> Export your data from your main device, then import it on other devices to sync your trading history.
                     <br><br>
-                    <strong>📱 Multi-Device:</strong> Access your dashboard from any device with automatic sync across MacBook, iPhone, and iPad.
+                    <strong>🔐 Privacy:</strong> Data stays on your devices only. No cloud services required.
                 </div>
             </div>
 
@@ -999,38 +997,11 @@ This is safe to use - it's public configuration, not a secret!`);
         }
 
         function updateSyncStatus(status) {
-            cloudSync.status = status;
-            const statusElement = document.getElementById('syncStatus');
-            if (statusElement) {
-                statusElement.textContent = status;
-                
-                const color = {
-                    'Ready': '#38a169',
-                    'Synced': '#38a169', 
-                    'Syncing...': '#ed8936',
-                    'Downloading...': '#ed8936',
-                    'Downloaded': '#38a169',
-                    'Sync failed': '#e53e3e',
-                    'Download failed': '#e53e3e',
-                    'Not configured': '#718096',
-                    'Manual mode': '#667eea',
-                    'No cloud data': '#ed8936'
-                }[status] || '#718096';
-                
-                statusElement.style.color = color;
-            }
+            // Simplified - no complex cloud sync
         }
 
         function updateSyncDisplay() {
-            const lastSyncElement = document.getElementById('lastSync');
-            const providerElement = document.getElementById('syncProvider');
-            
-            if (lastSyncElement) {
-                lastSyncElement.textContent = cloudSync.lastSync || 'Never';
-            }
-            if (providerElement) {
-                providerElement.textContent = cloudSync.provider || 'None';
-            }
+            // Simplified - no complex cloud sync
         }
 
         function getDeviceId() {
@@ -2474,10 +2445,10 @@ This is safe to use - it's public configuration, not a secret!`);
             if (deviceElement) {
                 deviceElement.textContent = getDeviceId().slice(-4);
             }
-            updateSyncDisplay();
             
-            // Check for saved authentication
-            setTimeout(checkForSavedAuth, 1000); // Wait for gapi to load
+            // Set manual sync as default
+            document.getElementById('syncStatus').textContent = 'Manual Mode';
+            document.getElementById('syncProvider').textContent = 'Export/Import';
         };
 
         function setupCloudSync() {

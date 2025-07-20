@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Credit Spreads Trading Dashboard</title>
+    
+    <!-- External Dependencies -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+    <script src="https://apis.google.com/js/api.js"></script>
+    
+    <!-- Local Stylesheets -->
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Credit Spreads Trading Dashboard</h1>
+            <p>Building $3k to $100k - Track Performance & Make Better Decisions</p>
+        </div>
+
+        <div class="dashboard-grid">
+            <!-- Time Decay Optimization -->
+            <div class="card">
+                <h3>Time Decay Optimization</h3>
+                <div class="metrics-row">
+                    <div class="metric">
+                        <div class="metric-value" id="currentDay">--</div>
+                        <div class="metric-label">Today</div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-value" id="entryTiming">--</div>
+                        <div class="metric-label">Entry Timing</div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-value" id="optimalDTE">--</div>
+                        <div class="metric-label">Optimal DTE</div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-value" id="weekStatus">--</div>
+                        <div class="metric-label">Week Status</div>
+                    </div>
+                </div>
+                
+                <div class="metrics-row" style="margin-bottom: 15px;">
+                    <div style="text-align: center; padding: 10px;">
+                        <strong>Weekly Theta Efficiency</strong>
+                        <div style="display: flex; justify-content: space-between; margin-top: 10px; font-size: 0.9rem;">
+                            <span id="mondayScore" class="day-score">Mon: --</span>
+                            <span id="tuesdayScore" class="day-score">Tue: --</span>
+                            <span id="wednesdayScore" class="day-score">Wed: --</span>
+                            <span id="thursdayScore" class="day-score">Thu: --</span>
+                            <span id="fridayScore" class="day-score">Fri: --</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div id="timingInsight" class="insight-item" style="margin-top: 15px; background: rgba(102, 126, 234, 0.1); border-left: 4px solid #667eea; color: #4a5568;">
+                    <strong>⏰ Timing Analysis:</strong> <span id="timingAnalysisText">Analyzing optimal entry timing...</span>
+                </div>
+                
+                <div class="form-row" style="margin-top: 15px;">
+                    <div class="input-group">
+                        <label>Target DTE for Analysis</label>
+                        <input type="number" id="targetDTE" placeholder="30" value="30" min="7" max="60">
+                    </div>
+                    <button onclick="app.updateTimingAnalysis()" style="align-self: end;">🔄 Update Analysis</button>
+                </div>
+            </div>
+
+            <!-- Market Trend Analysis -->
+            <div class="card">
+                <h3>Market Trend Analysis</h3>
+                <div class="metrics-row">
+                    <div class="metric">
+                        <div class="metric-value" id="spyTrend">--</div>
+                        <div class="metric-label">SPY Trend</div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-value" id="qqqTrend">--</div>
+                        <div class="metric-label">QQQ Trend</div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-value" id="trendStrength">--</div>
+                        <div class="metric-label">Trend Strength</div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-value" id="spreadFriendly">--</div>
+                        <div class="metric-label">Spread Environment</div>
+                    </div>
+                </div>
+                
+                <div class="chart-container" style="height: 200px;">
+                    <canvas id="trendChart"></canvas>
+                </div>
+                
+                <div id="trendInsight" class="insight-item" style="margin-top: 15px; background: rgba(56, 161, 105, 0.1); border-left: 4px solid #38a169; color: #4a5568;">
+                    <strong>📈 Trend Analysis:</strong> <span id="trendAnalysisText">Loading market trend data...</span>
+                </div>
+                
+                <button onclick="app.updateTrendAnalysis()" style="margin-top: 15px; font-size: 0.9rem; padding: 8px 15px;">🔄 Refresh Trends</button>
+            </div>
+
+            <!-- Economic Calendar -->
+            <div class="card">
+                <h3>Economic Calendar (7-Day Outlook)</h3>
+                <div class="metrics-row">
+                    <div class="metric">
+                        <div class="metric-value" id="upcomingEvents">--</div>
+                        <div class="metric-label">Events This Week</div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-value" id="riskLevel">--</div>
+                        <div class="metric-label">Risk Level</div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-value" id="tradingAdvice">--</div>
+                        <div class="metric-label">Trading Status</div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-value" id="nextMajorEvent">--</div>
+                        <div class="metric-label">Next Major Event</div>
+                    </div>
+                </div>
+                
+                <div id="economicEvents" class="trade-list" style="max-height: 200px;">
+                    <div style="padding: 20px; text-align: center; color: #718096;">
+                        Loading economic calendar...
+                    </div>
+                </div>
+                
+                <div id="calendarInsight" class="insight-item" style="margin-top: 15px; background: rgba(237, 137, 54, 0.1); border-left: 4px solid #ed8936; color: #4a5568;">
+                    <strong>📅 Calendar Analysis:</strong> <span id="calendarAnalysisText">Loading economic events...</span>
+                </div>
+                
+                <button onclick="app.updateEconomicCalendar()" style="margin-top: 15px; font-size: 0.9rem; padding: 8px 15px;">🔄 Refresh Calendar</button>
+            </div>
+
+            <!-- Market Environment -->
+            <div class="card">
+                <h3>Market Environment</h3>
+                <div class="metrics-row">
+                    <div class="metric">
+                        <div class="metric-value" id="vixLevel">--</div>
+                        <div class="metric-label">VIX Level</div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-value" id="vixEnvironment">Loading...</div>
+                        <div class="metric-label">Environment</div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-value" id="vixRecommendation">--</div>
+                        <div class="metric-label">Strategy Outlook</div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-value" id="lastVixUpdate">--</div>
+                        <div class="metric-label">Last Updated</div>
+                    </div>
+                </div>
+                <div id="vixInsight" class="insight-item" style="margin-top: 15px; background: rgba(102, 126, 234, 0.1); border-left: 4px solid #667eea; color: #4a5568;">
+                    <strong>📊 VIX Analysis:</strong> <span id="vixAnalysisText">Loading market data...</span>
+                </div>
+                <button onclick="app.updateVixData()" style="margin-top: 15px; font-size: 0.9rem; padding: 8px 15px;">🔄 Refresh VIX Data</button>
+            </div>
+
+            <!-- Account Overview -->
+            <div class="card">
+                <h3>Account Overview</h3>
+                <div class="metrics-row">
+                    <div class="metric">
+                        <div class="metric-value" id="accountValue">$3,000</div>
+                        <div class="metric-label">Account Value</div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-value positive" id="totalReturn">+0%</div>
+                        <div class="metric-label">Total Return</div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-value" id="monthlyReturn">+0%</div>
+                        <div class="metric-label">Monthly Return</div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-value" id="winRate">0%</div>
+                        <div class="metric-label">Win Rate</div>
+                    </div>
+                </div>
+                
+                <div class="chart-container">
+                    <canvas id="accountChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Position Management -->
+            <div class="card">
+                <h3>Active Positions</h3>
+                <div class="metrics-row">
+                    <div class="metric">
+                        <div class="metric-value" id="activePositions">0</div>
+                        <div class="metric-label">Active Trades</div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-value" id="capitalAtRisk">$0</div>
+                        <div class="metric-label">Capital at Risk</div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-value" id="maxLoss">$0</div>
+                        <div class="metric-label">Max Potential Loss</div>
+                    </div>
+                </div>
+
+                <div id="riskLevel" class="risk-indicator risk-low">Low Risk</div>
+                
+                <div class="chart-container">
+                    <canvas id="riskChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Trade Entry -->
+            <div class="card">
+                <h3>New Trade Entry</h3>
+                
+                <div class="tabs">
+                    <div class="tab active">Bull Put Spread</div>
+                    <div class="tab">Bear Call Spread</div>
+                </div>
+
+                <div id="bullPut" class="tab-content active">
+                    <div class="form-section">
+                        <div class="form-row">
+                            <div class="input-group">
+                                <label>Underlying</label>
+                                <select id="underlying1">
+                                    <option value="SPY">SPY</option>
+                                    <option value="QQQ">QQQ</option>
+                                    <option value="IWM">IWM</option>
+                                </select>
+                            </div>
+                            <div class="input-group">
+                                <label>Current Price</label>
+                                <input type="number" id="currentPrice1" placeholder="570" step="0.01">
+                            </div>
+                        </div>
+                        
+                        <div class="form-row">
+                            <div class="input-group">
+                                <label>Short Strike (Sell Put)</label>
+                                <input type="number" id="shortStrike1" placeholder="565" step="0.01">
+                            </div>
+                            <div class="input-group">
+                                <label>Long Strike (Buy Put)</label>
+                                <input type="number" id="longStrike1" placeholder="560" step="0.01">
+                            </div>
+                        </div>
+                        
+                        <div class="form-row">
+                            <div class="input-group">
+                                <label>Credit Received</label>
+                                <input type="number" id="creditReceived1" placeholder="80" step="0.01">
+                            </div>
+                            <div class="input-group">
+                                <label>Days to Expiration</label>
+                                <input type="number" id="dte1" placeholder="30">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="bearCall" class="tab-content">
+                    <div class="form-section">
+                        <div class="form-row">
+                            <div class="input-group">
+                                <label>Underlying</label>
+                                <select id="underlying2">
+                                    <option value="SPY">SPY</option>
+                                    <option value="QQQ">QQQ</option>
+                                    <option value="IWM">IWM</option>
+                                </select>
+                            </div>
+                            <div class="input-group">
+                                <label>Current Price</label>
+                                <input type="number" id="currentPrice2" placeholder="480" step="0.01">
+                            </div>
+                        </div>
+                        
+                        <div class="form-row">
+                            <div class="input-group">
+                                <label>Short Strike (Sell Call)</label>
+                                <input type="number" id="shortStrike2" placeholder="485" step="0.01">
+                            </div>
+                            <div class="input-group">
+                                <label>Long Strike (Buy Call)</label>
+                                <input type="number" id="longStrike2" placeholder="490" step="0.01">
+                            </div>
+                        </div>
+                        
+                        <div class="form-row">
+                            <div class="input-group">
+                                <label>Credit Received</label>
+                                <input type="number" id="creditReceived2" placeholder="75" step="0.01">
+                            </div>
+                            <div class="input-group">
+                                <label>Days to Expiration</label>
+                                <input type="number" id="dte2" placeholder="30">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <button onclick="app.analyzeTrade()">Analyze Trade</button>
+                <button onclick="app.addTrade()">Add Trade</button>
+                
+                <div id="tradeAnalysis" style="margin-top: 20px; display: none;">
+                    <h4>Trade Analysis</h4>
+                    <div class="metrics-row">
+                        <div class="metric">
+                            <div class="metric-value" id="maxProfit">$0</div>
+                            <div class="metric-label">Max Profit</div>
+                        </div>
+                        <div class="metric">
+                            <div class="metric-value" id="maxRisk">$0</div>
+                            <div class="metric-label">Max Risk</div>
+                        </div>
+                        <div class="metric">
+                            <div class="metric-value" id="returnPercent">0%</div>
+                            <div class="metric-label">Return %</div>
+                        </div>
+                        <div class="metric">
+                            <div class="metric-value" id="breakeven">$0</div>
+                            <div class="metric-label">Breakeven</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Performance Analytics -->
+            <div class="card">
+                <h3>Performance Analytics</h3>
+                <div class="metrics-row">
+                    <div class="metric">
+                        <div class="metric-value" id="avgReturn">0%</div>
+                        <div class="metric-label">Avg Return/Trade</div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-value" id="bestTrade">$0</div>
+                        <div class="metric-label">Best Trade</div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-value" id="worstTrade">$0</div>
+                        <div class="metric-label">Worst Trade</div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-value" id="sharpeRatio">0.0</div>
+                        <div class="metric-label">Sharpe Ratio</div>
+                    </div>
+                </div>
+                
+                <div class="chart-container">
+                    <canvas id="performanceChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Trade History -->
+            <div class="card">
+                <h3>Trade History</h3>
+                <div class="trade-list" id="tradeHistory">
+                    <div style="padding: 20px; text-align: center; color: #718096;">
+                        No trades yet. Add your first trade to get started!
+                    </div>
+                </div>
+            </div>
+
+            <!-- API Configuration & Cloud Sync -->
+            <div class="card">
+                <h3>API Configuration & Cloud Sync</h3>
+                
+                <!-- Finnhub API Configuration -->
+                <div style="margin-bottom: 20px; padding: 15px; background: #f0f8ff; border-radius: 8px; border-left: 4px solid #4285f4;">
+                    <h4 style="margin-bottom: 10px; color: #4a5568;">📊 Finnhub API Configuration</h4>
+                    <div class="form-row">
+                        <div class="input-group">
+                            <label>Finnhub API Key</label>
+                            <input type="password" id="finnhubApiKey" placeholder="Enter your Finnhub API key" style="font-family: monospace;">
+                        </div>
+                        <button onclick="app.configureFinnhubApi()" style="align-self: end;">🔧 Configure API</button>
+                    </div>
+                    <div style="font-size: 0.85rem; color: #4a5568; margin-top: 10px;">
+                        <strong>🆓 Free API Key:</strong> Get yours at <a href="https://finnhub.io/register" target="_blank" style="color: #4285f4;">finnhub.io/register</a> (60 calls/min free)<br>
+                        <strong>🔒 Privacy:</strong> API key stored locally in your browser only.<br>
+                        <strong>✅ Status:</strong> <span id="apiKeyStatus">API key will be auto-configured on first load</span><br>
+                        <strong>📈 Usage:</strong> <span id="apiUsage">No recent requests</span>
+                    </div>
+                </div>
+                <div class="metrics-row">
+                    <div class="metric">
+                        <div class="metric-value" id="syncStatus">Manual Mode</div>
+                        <div class="metric-label">Sync Status</div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-value" id="syncProvider">Export/Import</div>
+                        <div class="metric-label">Method</div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-value" id="lastSync">--</div>
+                        <div class="metric-label">Last Sync</div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-value" id="currentDevice">--</div>
+                        <div class="metric-label">Device ID</div>
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <button onclick="app.setupGoogleSync()" style="background: linear-gradient(135deg, #4285f4, #34a853);">🔧 Setup Google Drive Sync</button>
+                    <button onclick="app.syncToCloud()" style="background: linear-gradient(135deg, #38a169, #48bb78);">☁️ Sync to Cloud</button>
+                    <button onclick="app.syncFromCloud()" style="background: linear-gradient(135deg, #667eea, #764ba2);">📥 Sync from Cloud</button>
+                </div>
+                
+                <div style="margin-top: 15px; padding: 15px; background: #f0f8ff; border-radius: 8px; font-size: 0.9rem; color: #4a5568;">
+                    <strong>☁️ Google Drive Sync:</strong> Set up once to automatically sync your trading data across all devices. Your data stays private in your own Google Drive.
+                    <br><br>
+                    <strong>📱 Manual Sync:</strong> Use Export/Import buttons below for manual data transfer between devices.
+                </div>
+            </div>
+
+            <!-- Data Management -->
+            <div class="card">
+                <h3>Data Management</h3>
+                <div class="form-row">
+                    <button onclick="app.exportData()">📥 Export Data</button>
+                    <div>
+                        <input type="file" id="importFile" accept=".json" style="display: none;">
+                        <button onclick="document.getElementById('importFile').click()">📤 Import Data</button>
+                    </div>
+                    <button onclick="app.clearAllData()" style="background: linear-gradient(135deg, #e53e3e, #c53030);">🗑️ Clear All Data</button>
+                </div>
+                <div style="margin-top: 15px; padding: 15px; background: #f7fafc; border-radius: 8px; font-size: 0.9rem; color: #4a5568;">
+                    <strong>📊 Data Status:</strong> Your trades are automatically saved in your browser and will persist between sessions. Use export/import for backups or transferring between devices.
+                </div>
+            </div>
+
+            <!-- AI Insights & Recommendations -->
+            <div class="card insights-panel">
+                <h3>AI Insights & Recommendations</h3>
+                <div id="insights">
+                    <div class="insight-item">
+                        <strong>📊 Portfolio Health:</strong> Your account is ready for the first trade. Consider starting with a bull put spread on SPY with 30-45 days to expiration.
+                    </div>
+                    <div class="insight-item">
+                        <strong>🎯 Risk Management:</strong> Remember to limit each trade to 15% of your account value. With $3,000, maximum risk per trade should be $450.
+                    </div>
+                    <div class="insight-item">
+                        <strong>📈 Strategy Focus:</strong> For account building phase, focus on high-probability trades with 70%+ win rate rather than chasing maximum returns.
+                    </div>
+                    <div class="insight-item">
+                        <strong>⏰ Timing:</strong> Best to open new positions on Mondays and Tuesdays for optimal time decay. Avoid trading day before major economic announcements.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- JavaScript Modules -->
+    <script src="js/utils.js"></script>
+    <script src="js/storage.js"></script>
+    <script src="js/api.js"></script>
+    <script src="js/trading.js"></script>
+    <script src="js/charts.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>
